@@ -250,7 +250,7 @@ export interface AuditRecord {
   actor: {
     id: string;
     name: string;
-    role: 'admin' | 'vehicle_owner' | 'system';
+    role: 'admin' | 'vehicle_owner' | 'renter' | 'system';
     ip?: string;
   };
   vehiclePlate?: string;

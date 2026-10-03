@@ -6,8 +6,8 @@ export interface UserProfile {
   email: string;
   phone: string;
   password?: string;
-  role: 'admin' | 'vehicle_owner';
-  activeViewMode?: 'admin' | 'vehicle_owner' | 'renter'; // Can use app as normal user / customer!
+  role: 'admin' | 'vehicle_owner' | 'renter';
+  activeViewMode?: 'admin' | 'vehicle_owner' | 'renter'; // Can use app as customer
   
   // Owner specific properties (if role === 'vehicle_owner')
   ownerDetails?: {

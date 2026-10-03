@@ -4,7 +4,6 @@ import {
   LogOut, 
   ChevronDown, 
   Check, 
-  BookOpen, 
   Car, 
   DollarSign, 
   FileText,
@@ -22,7 +21,6 @@ interface NavbarProps {
   onLogout: () => void;
   onSwitchUser: (userId: string) => void;
   onToggleNormalUserMode: () => void;
-  onOpenDeveloperManual: () => void;
   isDemoPulseActive: boolean;
   setIsDemoPulseActive: (val: boolean) => void;
   auditCount: number;
@@ -38,13 +36,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   onSwitchUser,
   onToggleNormalUserMode,
-  onOpenDeveloperManual,
   auditCount,
 }) => {
   const [userMenuOpen, setUserMenuOpen] = useState<boolean>(false);
   const isAdmin = currentUser.role === 'admin';
   const isOwner = currentUser.role === 'vehicle_owner';
-  const isNormalUserMode = currentUser.activeViewMode === 'renter';
+  const isCustomerOnly = currentUser.role === 'renter';
+  const isNormalUserMode = isCustomerOnly || currentUser.activeViewMode === 'renter';
 
   return (
     <header className="sticky top-0 z-30 border-b border-neutral-800 bg-neutral-950/95 backdrop-blur-md">
@@ -62,13 +60,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
               <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded border ${
                 isAdmin ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' :
+                isOwner ? 'text-teal-400 bg-teal-500/10 border-teal-500/20' :
                 'text-blue-400 bg-blue-500/10 border-blue-500/20'
               }`}>
-                {isAdmin ? 'ADMIN' : 'CAR OWNER'}
+                {isAdmin ? 'ADMIN' : (isOwner ? 'CAR OWNER' : 'CUSTOMER')}
               </span>
             </div>
             <span className="text-[10px] text-neutral-400 font-mono">
-              {isNormalUserMode ? 'Renting as Customer' : (isAdmin ? 'Admin Dashboard' : 'Car Owner Dashboard')}
+              {isCustomerOnly ? 'Customer (Rent a Car)' : (isNormalUserMode ? 'Renting as Customer' : (isAdmin ? 'Admin Dashboard' : 'Car Owner Dashboard'))}
             </span>
           </div>
         </div>
@@ -164,29 +163,21 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Right Action Controls */}
         <div className="flex items-center gap-2.5">
           
-          {/* Normal User View Switcher */}
-          <button
-            onClick={onToggleNormalUserMode}
-            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-              isNormalUserMode
-                ? 'border-blue-500/40 bg-blue-500/10 text-blue-300'
-                : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
-            }`}
-            title="Switch between Admin/Owner and Customer view"
-          >
-            <Car className="h-3.5 w-3.5" />
-            <span>{isNormalUserMode ? 'Back to Dashboard' : 'Rent a Car'}</span>
-          </button>
-
-          {/* Developer Manual */}
-          <button
-            onClick={onOpenDeveloperManual}
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
-            title="Download Developer Guide (.md / .html)"
-          >
-            <BookOpen className="h-3.5 w-3.5" />
-            <span>Developer Guide</span>
-          </button>
+          {/* Normal User View Switcher (Only for Admin & Owners who have dual view modes) */}
+          {!isCustomerOnly && (
+            <button
+              onClick={onToggleNormalUserMode}
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                isNormalUserMode
+                  ? 'border-blue-500/40 bg-blue-500/10 text-blue-300'
+                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+              }`}
+              title="Switch between Admin/Owner and Customer view"
+            >
+              <Car className="h-3.5 w-3.5" />
+              <span>{isNormalUserMode ? 'Back to Dashboard' : 'Rent a Car'}</span>
+            </button>
+          )}
 
           {/* Action CTA: Add Car or Booking */}
           {isOwner ? (
@@ -221,7 +212,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {currentUser.name}
                 </span>
                 <span className="text-[10px] text-neutral-400 block font-mono">
-                  {isAdmin ? 'Admin' : 'Car Owner'}
+                  {isAdmin ? 'Admin' : (isOwner ? 'Car Owner' : 'Customer')}
                 </span>
               </div>
               <ChevronDown className="h-3.5 w-3.5 text-neutral-400" />
@@ -232,8 +223,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="p-2 border-b border-neutral-800">
                   <div className="text-xs font-bold text-white flex items-center justify-between">
                     <span className="truncate">{currentUser.name}</span>
-                    <span className="font-mono text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 shrink-0">
-                      {isAdmin ? 'Admin' : 'Car Owner'}
+                    <span className={`font-mono text-[9px] px-1.5 py-0.2 rounded border shrink-0 ${
+                      isAdmin ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' :
+                      isOwner ? 'text-teal-400 bg-teal-500/10 border-teal-500/20' :
+                      'text-blue-400 bg-blue-500/10 border-blue-500/20'
+                    }`}>
+                      {isAdmin ? 'Admin' : (isOwner ? 'Car Owner' : 'Customer')}
                     </span>
                   </div>
                   <div className="text-[11px] text-neutral-400 truncate mt-0.5">{currentUser.email}</div>
@@ -242,20 +237,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
 
-                {/* Normal User Mode Toggle */}
-                <button
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    onToggleNormalUserMode();
-                  }}
-                  className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <Car className="h-3.5 w-3.5" />
-                    <span>{isNormalUserMode ? 'Back to Admin/Owner Dashboard' : 'Rent a Car as Customer'}</span>
-                  </span>
-                  {isNormalUserMode && <Check className="h-3.5 w-3.5" />}
-                </button>
+                {/* Normal User Mode Toggle (For Admin & Owner only) */}
+                {!isCustomerOnly && (
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      onToggleNormalUserMode();
+                    }}
+                    className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Car className="h-3.5 w-3.5" />
+                      <span>{isNormalUserMode ? 'Back to Admin/Owner Dashboard' : 'Rent a Car as Customer'}</span>
+                    </span>
+                    {isNormalUserMode && <Check className="h-3.5 w-3.5" />}
+                  </button>
+                )}
 
                 {/* Quick Profile Switching */}
                 <div className="space-y-1">
@@ -290,17 +287,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
 
                 <div className="pt-1 border-t border-neutral-800 space-y-1">
-                  <button
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      onOpenDeveloperManual();
-                    }}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-                  >
-                    <BookOpen className="h-3.5 w-3.5" />
-                    <span>Developer Guide (.md)</span>
-                  </button>
-
                   <button
                     onClick={() => {
                       setUserMenuOpen(false);

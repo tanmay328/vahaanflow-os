@@ -29,7 +29,6 @@ import { CheckInModal } from './components/modals/CheckInModal';
 import { NewBookingModal } from './components/modals/NewBookingModal';
 import { RentalAgreementModal } from './components/modals/RentalAgreementModal';
 import { ReturnDossierModal } from './components/modals/ReturnDossierModal';
-import { DeveloperManualModal } from './components/modals/DeveloperManualModal';
 
 import { CheckCircle2, AlertCircle, Info, Lock } from 'lucide-react';
 
@@ -72,7 +71,6 @@ export default function App() {
   const [checkInBookingTarget, setCheckInBookingTarget] = useState<Booking | null>(null);
   const [agreementBookingTarget, setAgreementBookingTarget] = useState<Booking | null>(null);
   const [returnDossierBookingTarget, setReturnDossierBookingTarget] = useState<Booking | null>(null);
-  const [devManualModalOpen, setDevManualModalOpen] = useState<boolean>(false);
 
   // Real-time Cloud Firestore synchronization
   useEffect(() => {
@@ -587,16 +585,9 @@ export default function App() {
   // If not logged in, render LoginPage
   if (!currentUser) {
     return (
-      <>
-        <LoginPage 
-          onLoginSuccess={handleLoginSuccess}
-          onOpenDeveloperManual={() => setDevManualModalOpen(true)}
-        />
-        <DeveloperManualModal
-          isOpen={devManualModalOpen}
-          onClose={() => setDevManualModalOpen(false)}
-        />
-      </>
+      <LoginPage 
+        onLoginSuccess={handleLoginSuccess}
+      />
     );
   }
 
@@ -627,14 +618,13 @@ export default function App() {
         onLogout={handleLogout}
         onSwitchUser={handleSwitchUser}
         onToggleNormalUserMode={handleToggleNormalUserMode}
-        onOpenDeveloperManual={() => setDevManualModalOpen(true)}
         isDemoPulseActive={isDemoPulseActive}
         setIsDemoPulseActive={setIsDemoPulseActive}
         auditCount={auditLogs.length}
       />
 
-      {/* Normal User Mode Banner */}
-      {currentUser.activeViewMode === 'renter' && (
+      {/* Normal User Mode Banner (Shown to Admin & Owners switching into Customer view) */}
+      {currentUser.role !== 'renter' && currentUser.activeViewMode === 'renter' && (
         <div className="border-b border-blue-500/20 bg-blue-500/5 px-4 py-2 text-xs">
           <div className="mx-auto max-w-7xl flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -834,11 +824,6 @@ export default function App() {
           }}
         />
       )}
-
-      <DeveloperManualModal
-        isOpen={devManualModalOpen}
-        onClose={() => setDevManualModalOpen(false)}
-      />
 
       {/* Toast Notification */}
       {activeToast && (

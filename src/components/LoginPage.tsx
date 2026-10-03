@@ -8,7 +8,6 @@ import {
   ArrowRight, 
   CheckCircle2, 
   AlertCircle,
-  BookOpen,
   DollarSign,
   UserCheck,
   Building2,
@@ -20,12 +19,10 @@ import {
 
 interface LoginPageProps {
   onLoginSuccess: (user: UserProfile) => void;
-  onOpenDeveloperManual?: () => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ 
   onLoginSuccess, 
-  onOpenDeveloperManual 
 }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
@@ -35,13 +32,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [signInError, setSignInError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Sign Up state: 2 Roles only: Admin & Vehicle Owner
-  const [accountType, setAccountType] = useState<'admin' | 'vehicle_owner'>('vehicle_owner');
+  // Sign Up state: 2 Dedicated Sections: "Owner of a car" & "Customer to rent a car"
+  const [accountType, setAccountType] = useState<'vehicle_owner' | 'renter'>('vehicle_owner');
   const [fullName, setFullName] = useState<string>('');
   const [signUpEmail, setSignUpEmail] = useState<string>('');
   const [signUpPassword, setSignUpPassword] = useState<string>('');
   const [phone, setPhone] = useState<string>('+91 ');
   const [upiId, setUpiId] = useState<string>('');
+  const [drivingLicense, setDrivingLicense] = useState<string>('');
 
   // Forgot Password modal state
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState<boolean>(false);
@@ -93,7 +91,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       password: signUpPassword,
       phone,
       role: accountType,
-      upiId,
+      upiId: accountType === 'vehicle_owner' ? upiId : undefined,
+      drivingLicense: accountType === 'renter' ? drivingLicense : undefined,
     });
     setIsSubmitting(false);
     if (res.success && res.user) {
@@ -147,20 +146,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </span>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            {onOpenDeveloperManual && (
-              <button
-                type="button"
-                onClick={onOpenDeveloperManual}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
-                title="View & Download Developer Guide"
-              >
-                <BookOpen className="h-3.5 w-3.5" />
-                <span>Developer Guide (.md)</span>
-              </button>
-            )}
-          </div>
         </div>
       </header>
 
@@ -179,29 +164,39 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             </h1>
 
             <p className="text-sm text-neutral-400 leading-relaxed">
-              Login as <strong className="text-white">Admin</strong> to run the business, or as a <strong className="text-white">Car Owner</strong> to give your car for rent and earn money. Both can also rent cars as regular customers anytime.
+              Login as <strong className="text-white">Admin</strong> to operate the fleet, register as an <strong className="text-white">Owner of a car</strong> to earn rental income, or register as a <strong className="text-white">Customer to rent a car</strong> for self-drive trips.
             </p>
           </div>
 
           {/* Role Cards in plain words */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                <span>1. Admin (Runs the Platform)</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3.5 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>1. Admin</span>
               </div>
               <p className="text-[11px] text-neutral-400 leading-relaxed">
-                Add/remove cars, approve car owners, give keys, take returns, check damages, and send bank payouts to owners.
+                Manages cars, returns, damages & owner payouts. (Login only)
               </p>
             </div>
 
-            <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                <Car className="h-4 w-4 text-emerald-400" />
-                <span>2. Car Owner (Gives Car for Rent)</span>
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3.5 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <Car className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span>2. Owner of a Car</span>
               </div>
               <p className="text-[11px] text-neutral-400 leading-relaxed">
-                Add your own cars (can skip documents for now), block dates for personal use, see your bookings, and view your earnings.
+                Give your car for rent, block dates, track bookings & earnings.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-3.5 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                <KeyRound className="h-4 w-4 text-blue-400 shrink-0" />
+                <span>3. Customer</span>
+              </div>
+              <p className="text-[11px] text-neutral-400 leading-relaxed">
+                Rent & self-drive verified cars for trips with per-km rates.
               </p>
             </div>
           </div>
@@ -213,18 +208,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 ⚡ Quick Demo Accounts (1-Click Login)
               </span>
               <span className="text-[10px] text-neutral-500 font-mono">
-                Click any profile to test
+                Click to test any role
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => handleQuickLogin(INITIAL_USERS[0])}
                 className="text-left p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 hover:border-emerald-500/50 hover:bg-neutral-900 transition-colors group"
               >
                 <div className="flex items-center justify-between text-xs font-bold text-white group-hover:text-emerald-400">
-                  <span>Vikram Shinde</span>
+                  <span className="truncate">Vikram (Admin)</span>
                 </div>
                 <div className="text-[10px] text-emerald-400 font-mono mt-0.5">Platform Admin</div>
               </button>
@@ -235,9 +230,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 className="text-left p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 hover:border-emerald-500/50 hover:bg-neutral-900 transition-colors group"
               >
                 <div className="flex items-center justify-between text-xs font-bold text-white group-hover:text-emerald-400">
-                  <span>Suresh Patel</span>
+                  <span className="truncate">Suresh (Owner)</span>
                 </div>
-                <div className="text-[10px] text-neutral-400 font-mono mt-0.5">Car Owner (Petrol/Diesel)</div>
+                <div className="text-[10px] text-teal-400 font-mono mt-0.5">Owner of a Car</div>
               </button>
 
               <button
@@ -246,13 +241,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 className="text-left p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 hover:border-emerald-500/50 hover:bg-neutral-900 transition-colors group"
               >
                 <div className="flex items-center justify-between text-xs font-bold text-white group-hover:text-emerald-400">
-                  <span>Anita Roy</span>
+                  <span className="truncate">Anita (EV Fleet)</span>
                 </div>
-                <div className="text-[10px] text-neutral-400 font-mono mt-0.5">Car Owner (Electric EV)</div>
+                <div className="text-[10px] text-teal-400 font-mono mt-0.5">Owner of a Car</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleQuickLogin(INITIAL_USERS[3] || {
+                  id: 'usr-renter-01',
+                  name: 'Rahul Sharma',
+                  email: 'rahul.sharma@gmail.com',
+                  password: 'customer123',
+                  phone: '+91 99887 76655',
+                  role: 'renter',
+                  activeViewMode: 'renter',
+                  createdAt: new Date().toISOString(),
+                })}
+                className="text-left p-2.5 rounded-lg border border-neutral-800 bg-neutral-950 hover:border-blue-500/50 hover:bg-neutral-900 transition-colors group"
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-white group-hover:text-blue-400">
+                  <span className="truncate">Rahul (Customer)</span>
+                </div>
+                <div className="text-[10px] text-blue-400 font-mono mt-0.5">Customer to Rent</div>
               </button>
             </div>
             <p className="text-[10px] text-neutral-500">
-              * Note: Once logged in, you can click "Rent a Car" in the top bar to test renting cars as a regular customer.
+              * Note: Admins sign in directly. New users can create accounts under "Owner of a car" or "Customer to rent a car".
             </p>
           </div>
         </div>
@@ -376,39 +391,89 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </form>
             )}
 
-            {/* Mode: Sign Up (2 Roles Only) */}
+            {/* Mode: Sign Up with 2 Distinct Sections: "Owner of a car" vs "Customer to rent a car" */}
             {mode === 'signup' && (
               <form onSubmit={handleSignUpSubmit} className="space-y-4">
+                {/* Section Toggle */}
                 <div>
-                  <label className="block text-xs font-semibold text-neutral-300 mb-1">Choose Account Type</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <label className="block text-xs font-semibold text-neutral-300 mb-1.5">
+                    Select Account Type:
+                  </label>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {/* Section 1: Owner of a car */}
                     <button
                       type="button"
-                      onClick={() => setAccountType('vehicle_owner')}
-                      className={`p-2.5 rounded-lg border text-left transition-colors ${
+                      onClick={() => {
+                        setAccountType('vehicle_owner');
+                        setSignInError(null);
+                      }}
+                      className={`relative p-3 rounded-xl border text-left transition-all ${
                         accountType === 'vehicle_owner'
-                          ? 'border-emerald-500/40 bg-emerald-500/10 text-white'
-                          : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:bg-neutral-900'
+                          ? 'border-emerald-500 bg-emerald-500/15 text-white ring-1 ring-emerald-500/40 shadow-sm'
+                          : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'
                       }`}
                     >
-                      <div className="font-bold text-xs">Car Owner</div>
-                      <div className="text-[10px] text-neutral-400">Give car for rent & earn</div>
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <Car className={`h-4 w-4 shrink-0 ${accountType === 'vehicle_owner' ? 'text-emerald-400' : 'text-neutral-400'}`} />
+                        <span>Owner of a car</span>
+                      </div>
+                      <div className="text-[10px] text-neutral-400 mt-1 leading-snug">
+                        Give car for rent & earn money
+                      </div>
+                      {accountType === 'vehicle_owner' && (
+                        <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-emerald-400" />
+                      )}
                     </button>
 
+                    {/* Section 2: Customer to rent a car */}
                     <button
                       type="button"
-                      onClick={() => setAccountType('admin')}
-                      className={`p-2.5 rounded-lg border text-left transition-colors ${
-                        accountType === 'admin'
-                          ? 'border-emerald-500/40 bg-emerald-500/10 text-white'
-                          : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:bg-neutral-900'
+                      onClick={() => {
+                        setAccountType('renter');
+                        setSignInError(null);
+                      }}
+                      className={`relative p-3 rounded-xl border text-left transition-all ${
+                        accountType === 'renter'
+                          ? 'border-blue-500 bg-blue-500/15 text-white ring-1 ring-blue-500/40 shadow-sm'
+                          : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'
                       }`}
                     >
-                      <div className="font-bold text-xs">Admin</div>
-                      <div className="text-[10px] text-neutral-400">Run the rental system</div>
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <KeyRound className={`h-4 w-4 shrink-0 ${accountType === 'renter' ? 'text-blue-400' : 'text-neutral-400'}`} />
+                        <span>Customer to rent a car</span>
+                      </div>
+                      <div className="text-[10px] text-neutral-400 mt-1 leading-snug">
+                        Rent & drive cars for trips
+                      </div>
+                      {accountType === 'renter' && (
+                        <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-blue-400" />
+                      )}
                     </button>
                   </div>
                 </div>
+
+                {/* Section Specific Header Banner */}
+                {accountType === 'vehicle_owner' ? (
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-neutral-300">
+                    <div className="font-bold text-emerald-400 flex items-center gap-1.5 mb-1">
+                      <Car className="h-4 w-4" />
+                      <span>Section: Owner of a car</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-400 leading-relaxed">
+                      List your vehicles, track daily earnings, block dates for personal use, and get direct UPI payouts.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-neutral-300">
+                    <div className="font-bold text-blue-400 flex items-center gap-1.5 mb-1">
+                      <KeyRound className="h-4 w-4" />
+                      <span>Section: Customer to rent a car</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-400 leading-relaxed">
+                      Browse verified cars, rent instantly with clear per-km pricing, and manage your trips easily.
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-medium text-neutral-300 mb-1">Your Full Name</label>
@@ -417,7 +482,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     required
                     value={fullName}
                     onChange={e => setFullName(e.target.value)}
-                    placeholder="e.g. Ramesh Chandra"
+                    placeholder={accountType === 'vehicle_owner' ? "e.g. Ramesh Patel (Car Owner)" : "e.g. Rahul Sharma (Customer)"}
                     className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
@@ -430,7 +495,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                       required
                       value={signUpEmail}
                       onChange={e => setSignUpEmail(e.target.value)}
-                      placeholder="owner@domain.com"
+                      placeholder="user@domain.com"
                       className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -460,17 +525,31 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   />
                 </div>
 
-                {accountType === 'vehicle_owner' && (
+                {/* Section Specific Input Fields */}
+                {accountType === 'vehicle_owner' ? (
                   <div>
                     <label className="block text-xs font-medium text-neutral-300 mb-1">
-                      UPI ID for Payouts (Google Pay / PhonePe / Paytm)
+                      UPI ID for Rental Earnings (Optional - Google Pay / PhonePe / Paytm)
                     </label>
                     <input
                       type="text"
                       value={upiId}
                       onChange={e => setUpiId(e.target.value)}
-                      placeholder="e.g. yourname@okaxis"
+                      placeholder="e.g. yourname@okaxis (can add later)"
                       className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">
+                      Driving Licence Number (Optional - can verify during pickup)
+                    </label>
+                    <input
+                      type="text"
+                      value={drivingLicense}
+                      onChange={e => setDrivingLicense(e.target.value)}
+                      placeholder="e.g. DL-0420210012345 (can add later)"
+                      className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none"
                     />
                   </div>
                 )}
@@ -478,10 +557,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-emerald-500 text-neutral-950 font-bold text-xs hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg font-bold text-xs transition-colors shadow-lg disabled:opacity-50 ${
+                    accountType === 'vehicle_owner'
+                      ? 'bg-emerald-500 text-neutral-950 hover:bg-emerald-400 shadow-emerald-500/20'
+                      : 'bg-blue-500 text-white hover:bg-blue-400 shadow-blue-500/20'
+                  }`}
                 >
-                  {isSubmitting ? <span>Creating Account...</span> : <span>Create Account</span>}
+                  {isSubmitting ? (
+                    <span>Creating Account...</span>
+                  ) : accountType === 'vehicle_owner' ? (
+                    <span className="flex items-center gap-1.5">
+                      <Car className="h-3.5 w-3.5" />
+                      <span>Register as Owner of a car</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      <KeyRound className="h-3.5 w-3.5" />
+                      <span>Register as Customer to rent a car</span>
+                    </span>
+                  )}
                 </button>
+
+                <p className="text-center text-[10px] text-neutral-500 pt-1">
+                  * Note: Platform Admin accounts are managed privately and must sign in using assigned administrator credentials.
+                </p>
               </form>
             )}
 

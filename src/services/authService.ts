@@ -87,6 +87,21 @@ export const INITIAL_USERS: UserProfile[] = [
     },
     createdAt: '2026-09-01T12:00:00.000Z',
   },
+  {
+    id: 'usr-renter-01',
+    name: 'Rahul Sharma (Customer)',
+    email: 'rahul.sharma@gmail.com',
+    password: 'customer123',
+    phone: '+91 99887 76655',
+    role: 'renter',
+    activeViewMode: 'renter',
+    renterDetails: {
+      drivingLicense: 'DL-0420200055123',
+      aadhaarMasked: 'XXXX-XXXX-9921',
+      kycStatus: 'verified',
+    },
+    createdAt: '2026-09-10T10:00:00.000Z',
+  },
 ];
 
 export class AuthService {
@@ -241,7 +256,7 @@ export class AuthService {
     email: string;
     password: string;
     phone: string;
-    role: 'admin' | 'vehicle_owner';
+    role: 'vehicle_owner' | 'renter';
     upiId?: string;
     bankAccount?: string;
     drivingLicense?: string;
@@ -284,16 +299,19 @@ export class AuthService {
       console.info('Firebase Auth sign-up notice:', fbErr.message);
     }
 
+    // Public self-registration supports: 'vehicle_owner' or 'renter' (Admin is closed to public signup)
+    const assignedRole: UserRole = data.role === 'renter' ? 'renter' : 'vehicle_owner';
+
     const newUser: UserProfile = {
       id: uid,
       name: data.name.trim(),
       email: cleanEmail,
       password: data.password,
       phone: data.phone.trim(),
-      role: data.role,
-      activeViewMode: data.role,
+      role: assignedRole,
+      activeViewMode: assignedRole,
       createdAt: new Date().toISOString(),
-      ownerDetails: data.role === 'vehicle_owner' ? {
+      ownerDetails: assignedRole === 'vehicle_owner' ? {
         upiId: data.upiId || `${cleanEmail.split('@')[0]}@okaxis`,
         bankAccount: data.bankAccount || '',
         approvalStatus: 'approved',
