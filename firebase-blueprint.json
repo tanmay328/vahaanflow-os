@@ -1,0 +1,127 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["fleet_admin", "renter"] },
+        "phone": { "type": "string" },
+        "drivingLicense": { "type": "string" },
+        "aadhaarMasked": { "type": "string" },
+        "companyName": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Fleet asset record with real-time status and telematics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vin": { "type": "string" },
+        "make": { "type": "string" },
+        "model": { "type": "string" },
+        "year": { "type": "number" },
+        "category": { "type": "string" },
+        "licensePlate": { "type": "string" },
+        "color": { "type": "string" },
+        "transmission": { "type": "string" },
+        "fuelType": { "type": "string" },
+        "seatingCapacity": { "type": "number" },
+        "dailyRate": { "type": "number" },
+        "hourlyRate": { "type": "number" },
+        "depositAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "odometer": { "type": "number" },
+        "fuelOrBatteryPct": { "type": "number" },
+        "image": { "type": "string" }
+      },
+      "required": ["id", "vin", "make", "model", "licensePlate", "dailyRate", "status"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Rental booking record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bookingCode": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "vehicleName": { "type": "string" },
+        "vehiclePlate": { "type": "string" },
+        "vehicleCategory": { "type": "string" },
+        "customer": { "type": "object" },
+        "pickupLocation": { "type": "string" },
+        "returnLocation": { "type": "string" },
+        "pickupDate": { "type": "string" },
+        "returnDate": { "type": "string" },
+        "status": { "type": "string" },
+        "dailyRate": { "type": "number" },
+        "rentalDays": { "type": "number" },
+        "baseAmount": { "type": "number" },
+        "depositHeld": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "paymentStatus": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "bookingCode", "vehicleId", "customer", "pickupDate", "returnDate", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable ledger record for fleet actions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "category": { "type": "string" },
+        "action": { "type": "string" },
+        "summary": { "type": "string" },
+        "actor": { "type": "object" },
+        "severity": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "category", "action", "summary", "actor"]
+    },
+    "Maintenance": {
+      "title": "Maintenance",
+      "description": "Vehicle maintenance service log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "vehiclePlate": { "type": "string" },
+        "vehicleName": { "type": "string" },
+        "serviceType": { "type": "string" },
+        "scheduledDate": { "type": "string" },
+        "cost": { "type": "number" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "vehicleId", "serviceType", "scheduledDate", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and credentials"
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Vehicle fleet inventory"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Reservations and trip rental records"
+    },
+    "/auditLogs/{auditId}": {
+      "schema": "AuditLog",
+      "description": "Fleet event audit trail"
+    },
+    "/maintenance/{maintId}": {
+      "schema": "Maintenance",
+      "description": "RTO & garage service logs"
+    }
+  }
+}

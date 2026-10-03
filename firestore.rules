@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Vehicles collection
+    match /vehicles/{vehicleId} {
+      allow read, write: if true;
+    }
+
+    // Bookings collection
+    match /bookings/{bookingId} {
+      allow read, write: if true;
+    }
+
+    // Audit logs - append-only, strictly immutable (nobody can edit or delete)
+    match /auditLogs/{auditId} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+
+    // Maintenance
+    match /maintenance/{maintId} {
+      allow read, write: if true;
+    }
+
+    // Owner Payouts
+    match /payouts/{payoutId} {
+      allow read, write: if true;
+    }
+
+    // Disputes
+    match /disputes/{disputeId} {
+      allow read, write: if true;
+    }
+
+    // Platform Settings
+    match /settings/{docId} {
+      allow read, write: if true;
+    }
+
+    // Test connection endpoint
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+  }
+}
