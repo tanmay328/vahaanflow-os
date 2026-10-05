@@ -719,17 +719,27 @@ export default function App() {
 
       {/* Normal User Mode Banner (Shown to Admin & Owners switching into Customer view) */}
       {currentUser.role !== 'renter' && currentUser.activeViewMode === 'renter' && (
-        <div className="border-b border-blue-500/20 bg-blue-500/5 px-4 py-2 text-xs">
+        <div className={`border-b px-4 py-2 text-xs transition-colors duration-200 ${
+          theme === 'light'
+            ? 'border-emerald-200 bg-emerald-50/80 text-slate-900'
+            : 'border-emerald-500/20 bg-emerald-950/40 text-neutral-100'
+        }`}>
           <div className="mx-auto max-w-7xl flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-              <span className="text-neutral-300">
-                You are currently in <strong className="text-white">Customer Mode (Rent a Car)</strong>.
+              <span 
+                className={`h-2 w-2 rounded-full animate-pulse ${
+                  theme === 'light' ? 'bg-[#00bc7d]' : 'bg-emerald-400'
+                }`}
+              />
+              <span className={theme === 'light' ? 'text-slate-900' : 'text-neutral-200'}>
+                You are currently in <strong className={`font-bold ${theme === 'light' ? 'text-[#00bc7d]' : 'text-emerald-400'}`}>Customer Mode (Rent a Car)</strong>.
               </span>
             </div>
             <button
               onClick={handleToggleNormalUserMode}
-              className="text-xs font-semibold text-blue-400 hover:text-blue-300 underline"
+              className={`text-xs font-semibold underline transition-colors ${
+                theme === 'light' ? 'text-emerald-700 hover:text-emerald-800' : 'text-emerald-400 hover:text-emerald-300'
+              }`}
             >
               Back to {currentUser.role === 'admin' ? 'Admin' : 'Car Owner'} Dashboard
             </button>

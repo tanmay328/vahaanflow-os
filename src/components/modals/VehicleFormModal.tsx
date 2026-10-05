@@ -62,10 +62,9 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   const [fuelPct, setFuelPct] = useState<number>(initialVehicle?.fuelOrBatteryPct || 90);
 
   // Photos State
-  const [image, setImage] = useState<string>(
-    initialVehicle?.image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80'
-  );
+  const [image, setImage] = useState<string>(initialVehicle?.image || '');
   const [gallery, setGallery] = useState<string[]>(initialVehicle?.gallery || []);
+  const [customUrl, setCustomUrl] = useState('');
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
 
   // Status & Owner
@@ -124,6 +123,7 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setImage(reader.result);
+        setCustomUrl('');
       }
     };
     reader.readAsDataURL(file);
@@ -200,7 +200,7 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
       },
       odometer: Number(odometer),
       fuelOrBatteryPct: Number(fuelPct),
-      image: image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=1200&q=80',
+      image: image || '/images/suv_premium_black_1790847653822.jpg',
       gallery,
       notes: initialVehicle?.notes || 'Car in great condition, ready for rent.',
     };
@@ -338,8 +338,12 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                     Or select standard Indian car photo:
                   </label>
                   <select
+                    defaultValue=""
                     onChange={e => {
-                      if (e.target.value) setImage(e.target.value);
+                      if (e.target.value) {
+                        setImage(e.target.value);
+                        setCustomUrl('');
+                      }
                     }}
                     className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white text-xs focus:border-emerald-500 focus:outline-none"
                   >
@@ -358,10 +362,13 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                     Or paste Image URL:
                   </label>
                   <input
-                    type="url"
-                    value={image}
-                    onChange={e => setImage(e.target.value)}
-                    placeholder="https://..."
+                    type="text"
+                    value={customUrl}
+                    onChange={e => {
+                      setCustomUrl(e.target.value);
+                      if (e.target.value.trim()) setImage(e.target.value.trim());
+                    }}
+                    placeholder="https://... (leave empty to keep the selected photo)"
                     className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
                   />
                 </div>

@@ -50,6 +50,8 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  // Two-step delete confirmation (browser confirm()/prompt() are blocked in AI Studio's preview frame)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   // Strict Role Isolation: Owner sees only own vehicles!
   const scopedVehicles = useMemo(() => {
@@ -101,73 +103,81 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
             {isNormalUserMode && 'Browse all verified cars available for your trip.'}
           </p>
         </div>
-
-        {/* Add Car Button */}
-        {!isNormalUserMode && (
-          <button
-            onClick={onAddNewVehicle}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm whitespace-nowrap self-start sm:self-auto"
-          >
-            <Plus className="h-4 w-4 stroke-[2.5]" />
-            <span>{isAdmin ? 'Add New Car' : 'Add My Car for Rent'}</span>
-          </button>
-        )}
       </div>
 
-      {/* Filters Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="relative flex-1">
-          <Search className={`absolute left-3 top-2.5 h-4 w-4 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search by car name, number plate, or city..."
-            className={`w-full rounded-lg border pl-9 pr-3 py-2 text-xs transition-colors focus:outline-none ${
-              theme === 'light'
-                ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
-                : 'bg-neutral-900/80 border-neutral-800 text-white placeholder-neutral-500 focus:border-emerald-500'
-            }`}
-          />
-        </div>
+      {/* Filters Bar - only displayed when cars exist */}
+      {scopedVehicles.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1">
+            <Search className={`absolute left-3 top-2.5 h-4 w-4 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search by car name, number plate, or city..."
+              className={`w-full rounded-lg border pl-9 pr-3 py-2 text-xs transition-colors focus:outline-none ${
+                theme === 'light'
+                  ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
+                  : 'bg-neutral-900/80 border-neutral-800 text-white placeholder-neutral-500 focus:border-emerald-500'
+              }`}
+            />
+          </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-          <select
-            value={selectedStatus}
-            onChange={e => setSelectedStatus(e.target.value)}
-            className={`rounded-lg border px-3 py-2 text-xs focus:outline-none ${
-              theme === 'light'
-                ? 'bg-white border-slate-300 text-slate-900 shadow-sm focus:border-emerald-600'
-                : 'bg-neutral-900 border-neutral-800 text-white focus:border-emerald-500'
-            }`}
-          >
-            <option value="all">All Status</option>
-            <option value="available">Available (Ready)</option>
-            <option value="booked">Booked (Upcoming)</option>
-            <option value="on_trip">On Trip (With Customer)</option>
-            <option value="maintenance">In Workshop</option>
-            <option value="blocked">Blocked</option>
-          </select>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            <select
+              value={selectedStatus}
+              onChange={e => setSelectedStatus(e.target.value)}
+              className={`rounded-lg border px-3 py-2 text-xs focus:outline-none ${
+                theme === 'light'
+                  ? 'bg-white border-slate-300 text-slate-900 shadow-sm focus:border-emerald-600'
+                  : 'bg-neutral-900 border-neutral-800 text-white focus:border-emerald-500'
+              }`}
+            >
+              <option value="all">All Status</option>
+              <option value="available">Available (Ready)</option>
+              <option value="booked">Booked (Upcoming)</option>
+              <option value="on_trip">On Trip (With Customer)</option>
+              <option value="maintenance">In Workshop</option>
+              <option value="blocked">Blocked</option>
+            </select>
 
-          <select
-            value={selectedCategory}
-            onChange={e => setSelectedCategory(e.target.value)}
-            className={`rounded-lg border px-3 py-2 text-xs focus:outline-none ${
-              theme === 'light'
-                ? 'bg-white border-slate-300 text-slate-900 shadow-sm focus:border-emerald-600'
-                : 'bg-neutral-900 border-neutral-800 text-white focus:border-emerald-500'
-            }`}
-          >
-            <option value="all">All Types</option>
-            <option value="SUV">SUV</option>
-            <option value="MPV">MPV (7 Seater)</option>
-            <option value="Sedan">Sedan</option>
-            <option value="Compact EV">Electric EV</option>
-            <option value="Off-Roader">4x4 Off-Roader</option>
-            <option value="Luxury Van">Van</option>
-          </select>
+            <select
+              value={selectedCategory}
+              onChange={e => setSelectedCategory(e.target.value)}
+              className={`rounded-lg border px-3 py-2 text-xs focus:outline-none ${
+                theme === 'light'
+                  ? 'bg-white border-slate-300 text-slate-900 shadow-sm focus:border-emerald-600'
+                  : 'bg-neutral-900 border-neutral-800 text-white focus:border-emerald-500'
+              }`}
+            >
+              <option value="all">All Types</option>
+              <option value="SUV">SUV</option>
+              <option value="MPV">MPV (7 Seater)</option>
+              <option value="Sedan">Sedan</option>
+              <option value="Compact EV">Electric EV</option>
+              <option value="Off-Roader">4x4 Off-Roader</option>
+              <option value="Luxury Van">Van</option>
+            </select>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Empty State when no cars */}
+      {scopedVehicles.length === 0 && (
+        <div className={`text-center py-16 px-4 rounded-2xl border ${
+          theme === 'light' ? 'border-slate-200 bg-white' : 'border-neutral-800 bg-neutral-900/40'
+        }`}>
+          <Car className={`mx-auto h-12 w-12 mb-3 ${theme === 'light' ? 'text-slate-300' : 'text-neutral-600'}`} />
+          <h3 className={`text-base font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+            {isOwner ? 'No cars registered yet' : 'No cars available'}
+          </h3>
+          <p className={`text-xs mt-1 max-w-sm mx-auto ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
+            {isOwner 
+              ? 'Click the "+ Add Car" button in the top navigation bar to register your vehicle for rent.' 
+              : 'There are currently no vehicles on the platform.'}
+          </p>
+        </div>
+      )}
 
       {/* Car Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -195,13 +205,16 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                 
                 {/* Status Badges */}
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm ${
-                    vehicle.status === 'available' ? 'bg-emerald-600 text-white' :
-                    vehicle.status === 'on_trip' ? 'bg-blue-600 text-white' :
-                    vehicle.status === 'booked' ? 'bg-amber-600 text-white' :
-                    vehicle.status === 'maintenance' ? 'bg-orange-600 text-white' :
-                    'bg-rose-600 text-white'
-                  }`}>
+                  <span 
+                    style={{ color: '#ffffff' }}
+                    className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm text-white ${
+                      vehicle.status === 'available' ? 'bg-emerald-600' :
+                      vehicle.status === 'on_trip' ? 'bg-blue-600' :
+                      vehicle.status === 'booked' ? 'bg-amber-600' :
+                      vehicle.status === 'maintenance' ? 'bg-orange-600' :
+                      'bg-rose-600'
+                    }`}
+                  >
                     {vehicle.status === 'available' ? 'Available' :
                      vehicle.status === 'on_trip' ? 'On Trip' :
                      vehicle.status === 'booked' ? 'Booked' :
@@ -209,7 +222,10 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                   </span>
 
                   {isPending && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-400 text-neutral-950 shadow-sm">
+                    <span 
+                      style={{ color: '#ffffff' }}
+                      className="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-white shadow-sm"
+                    >
                       Waiting for Approval
                     </span>
                   )}
@@ -312,7 +328,12 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                     <button
                       onClick={() => onStartBookingForVehicle(vehicle)}
                       disabled={vehicle.status !== 'available'}
-                      className="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors disabled:opacity-50 shadow-sm"
+                      style={{ color: '#ffffff' }}
+                      className={`w-full py-2.5 px-4 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-2 text-white ${
+                        vehicle.status === 'available'
+                          ? 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99]'
+                          : 'bg-emerald-600/70 opacity-70 cursor-not-allowed'
+                      }`}
                     >
                       {vehicle.status === 'available' ? 'Book This Car' : 'Currently Unavailable'}
                     </button>
@@ -323,16 +344,15 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                         <div className="flex items-center gap-1.5 w-full">
                           <button
                             onClick={() => onApproveVehicle(vehicle.id)}
-                            className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-colors shadow-sm"
+                            style={{ color: '#ffffff' }}
+                            className="flex-1 py-2 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-sm"
                           >
                             Approve Car
                           </button>
                           <button
-                            onClick={() => {
-                              const r = prompt('Reason for rejecting car:');
-                              if (r) onRejectVehicle(vehicle.id, r);
-                            }}
-                            className="py-1.5 px-2 rounded-lg border border-red-500/40 text-red-600 hover:bg-red-50 font-medium text-[11px]"
+                            onClick={() => onRejectVehicle(vehicle.id, 'Rejected by admin')}
+                            style={{ color: '#ffffff' }}
+                            className="py-2 px-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-colors"
                           >
                             Reject
                           </button>
@@ -345,32 +365,34 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => onEditVehicle(vehicle)}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                                theme === 'light'
-                                  ? 'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200'
-                                  : 'border-neutral-700 bg-neutral-800 text-neutral-200 hover:text-white hover:bg-neutral-700'
-                              }`}
+                              style={{ color: '#ffffff' }}
+                              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
                               title="Edit car details, rates, blocked dates, or photos"
                             >
-                              <Edit3 className={`h-3.5 w-3.5 ${theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'}`} />
-                              <span>{isOwner ? 'Manage / Edit Car' : 'Edit'}</span>
+                              <Edit3 className="h-3.5 w-3.5 text-white" />
+                              <span>{isOwner ? 'Manage / Edit Car' : 'Edit Car'}</span>
                             </button>
 
                             {isAdmin && (
                               <button
                                 onClick={() => {
-                                  if (confirm(`Remove ${vehicle.make} ${vehicle.model} from platform?`)) {
+                                  if (pendingDeleteId === vehicle.id) {
                                     onDeleteVehicle(vehicle.id);
+                                    setPendingDeleteId(null);
+                                  } else {
+                                    setPendingDeleteId(vehicle.id);
+                                    setTimeout(() => setPendingDeleteId(null), 4000);
                                   }
                                 }}
-                                className={`p-1.5 rounded-lg border transition-colors ${
-                                  theme === 'light'
-                                    ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
-                                    : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20'
-                                }`}
-                                title="Remove car from platform"
+                                style={{ color: '#ffffff' }}
+                                className="p-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition-colors shadow-sm"
+                                title={pendingDeleteId === vehicle.id ? 'Click again to confirm delete' : 'Remove car from platform'}
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                {pendingDeleteId === vehicle.id ? (
+                                  <span className="text-[10px] font-bold px-1" style={{ color: '#ffffff' }}>Sure?</span>
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5 text-white" />
+                                )}
                               </button>
                             )}
                           </div>
@@ -380,10 +402,11 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                               <select
                                 value={vehicle.status}
                                 onChange={e => {
-                                  const reason = prompt(`Reason for setting status to ${e.target.value}:`);
-                                  if (reason) {
-                                    onUpdateStatus(vehicle.id, e.target.value as VehicleStatus, reason);
-                                  }
+                                  onUpdateStatus(
+                                    vehicle.id,
+                                    e.target.value as VehicleStatus,
+                                    'Changed by admin from fleet list'
+                                  );
                                 }}
                                 className={`text-[10px] font-semibold rounded border px-2 py-1 focus:outline-none ${
                                   theme === 'light'

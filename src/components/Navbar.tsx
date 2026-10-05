@@ -84,15 +84,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Dynamic Navigation Tabs */}
-        <nav className="hidden lg:flex items-center gap-1">
+        <nav className="hidden lg:flex items-center gap-1.5">
           
           {/* Tab 1: Cars */}
           <button
             onClick={() => setActiveTab('fleet')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border ${
               activeTab === 'fleet'
-                ? (theme === 'dark' ? 'bg-neutral-800 text-white' : 'bg-slate-900 text-white shadow-sm')
-                : (theme === 'dark' ? 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100')
+                ? (theme === 'light' 
+                    ? 'bg-white text-slate-900 border-slate-300 shadow-sm ring-1 ring-slate-200' 
+                    : 'bg-neutral-800 text-white border-neutral-700 shadow-sm')
+                : (theme === 'light' 
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent' 
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 border-transparent')
             }`}
           >
             {isOwner ? 'My Cars' : (isNormalUserMode ? 'Rent a Car' : 'All Cars')}
@@ -101,10 +105,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Tab 2: Bookings */}
           <button
             onClick={() => setActiveTab('bookings')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border ${
               activeTab === 'bookings'
-                ? (theme === 'dark' ? 'bg-neutral-800 text-white' : 'bg-slate-900 text-white shadow-sm')
-                : (theme === 'dark' ? 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100')
+                ? (theme === 'light' 
+                    ? 'bg-white text-slate-900 border-slate-300 shadow-sm ring-1 ring-slate-200' 
+                    : 'bg-neutral-800 text-white border-neutral-700 shadow-sm')
+                : (theme === 'light' 
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent' 
+                    : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 border-transparent')
             }`}
           >
             {isOwner ? 'Car Bookings' : (isNormalUserMode ? 'My Trips' : 'All Bookings')}
@@ -114,10 +122,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           {isOwner && (
             <button
               onClick={() => setActiveTab('earnings')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 border ${
                 activeTab === 'earnings'
-                  ? (theme === 'dark' ? 'bg-neutral-800 text-white' : 'bg-slate-900 text-white shadow-sm')
-                  : (theme === 'dark' ? 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100')
+                  ? (theme === 'light' 
+                      ? 'bg-white text-slate-900 border-slate-300 shadow-sm ring-1 ring-slate-200' 
+                      : 'bg-neutral-800 text-white border-neutral-700 shadow-sm')
+                  : (theme === 'light' 
+                      ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent' 
+                      : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 border-transparent')
               }`}
             >
               <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
@@ -129,10 +141,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           {isAdmin && (
             <button
               onClick={() => setActiveTab('payouts')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 border ${
                 activeTab === 'payouts'
-                  ? (theme === 'dark' ? 'bg-neutral-800 text-white' : 'bg-slate-900 text-white shadow-sm')
-                  : (theme === 'dark' ? 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100')
+                  ? (theme === 'light' 
+                      ? 'bg-white text-slate-900 border-slate-300 shadow-sm ring-1 ring-slate-200' 
+                      : 'bg-neutral-800 text-white border-neutral-700 shadow-sm')
+                  : (theme === 'light' 
+                      ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent' 
+                      : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 border-transparent')
               }`}
             >
               <span>Owner Payouts & Complaints</span>
@@ -143,15 +159,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           {isAdmin && (
             <button
               onClick={() => setActiveTab('audit')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 border ${
                 activeTab === 'audit'
-                  ? (theme === 'dark' ? 'bg-neutral-800 text-white' : 'bg-slate-900 text-white shadow-sm')
-                  : (theme === 'dark' ? 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100')
+                  ? (theme === 'light' 
+                      ? 'bg-white text-slate-900 border-slate-300 shadow-sm ring-1 ring-slate-200' 
+                      : 'bg-neutral-800 text-white border-neutral-700 shadow-sm')
+                  : (theme === 'light' 
+                      ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent' 
+                      : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 border-transparent')
               }`}
             >
               <span>Activity History (Read-only)</span>
               <span className={`text-[10px] font-mono tabular-nums px-1.5 py-0.2 rounded border ${
-                theme === 'dark' ? 'text-neutral-400 bg-neutral-900 border-neutral-700' : 'text-slate-600 bg-slate-100 border-slate-300'
+                theme === 'light' ? 'text-slate-600 bg-slate-100 border-slate-200' : 'text-neutral-400 bg-neutral-900 border-neutral-700'
               }`}>
                 {auditCount}
               </span>
@@ -162,10 +182,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           {isAdmin && (
             <button
               onClick={() => setActiveTab('maintenance')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all border ${
                 activeTab === 'maintenance'
-                  ? (theme === 'dark' ? 'bg-neutral-800 text-white' : 'bg-slate-900 text-white shadow-sm')
-                  : (theme === 'dark' ? 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100')
+                  ? (theme === 'light' 
+                      ? 'bg-white text-slate-900 border-slate-300 shadow-sm ring-1 ring-slate-200' 
+                      : 'bg-neutral-800 text-white border-neutral-700 shadow-sm')
+                  : (theme === 'light' 
+                      ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-transparent' 
+                      : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900 border-transparent')
               }`}
             >
               Car Servicing & Fitness
@@ -180,20 +204,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           {!isCustomerOnly && (
             <button
               onClick={onToggleNormalUserMode}
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
                 isNormalUserMode
-                  ? 'border-blue-500/40 bg-blue-500/10 text-blue-300'
-                  : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white'
+                  ? (theme === 'light' 
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm' 
+                      : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300')
+                  : (theme === 'light'
+                      ? 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50 shadow-sm'
+                      : 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white')
               }`}
               title="Switch between Admin/Owner and Customer view"
             >
-              <Car className="h-3.5 w-3.5" />
+              <Car className="h-3.5 w-3.5 text-emerald-500" />
               <span>{isNormalUserMode ? 'Back to Dashboard' : 'Rent a Car'}</span>
             </button>
           )}
 
           {/* Action CTA: Add Car or Booking */}
-          {isOwner ? (
+          {(!isNormalUserMode && (isOwner || isAdmin)) ? (
             <button
               onClick={onOpenNewVehicle}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500 text-neutral-950 hover:bg-emerald-400 transition-colors shadow-sm shadow-emerald-500/20 whitespace-nowrap"

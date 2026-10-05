@@ -61,8 +61,16 @@
   border-color: #cbd5e1 !important;
 }
 
-.light .text-white {
-  color: #0f172a !important;
+/* Ensure solid action buttons, badges, and white text stay crisp white */
+.light .text-white,
+.light [class*="bg-emerald-600"],
+.light [class*="bg-emerald-700"],
+.light [class*="bg-blue-600"],
+.light [class*="bg-amber-600"],
+.light [class*="bg-orange-600"],
+.light [class*="bg-rose-600"],
+.light button[class*="bg-emerald-"] {
+  color: #ffffff !important;
 }
 
 .light .text-neutral-100 {

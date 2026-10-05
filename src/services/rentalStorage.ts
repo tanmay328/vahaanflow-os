@@ -178,8 +178,9 @@ export class RentalStorageService {
         }
       }
       list.forEach(v => {
-        v.status = 'available';
-        v.approvalStatus = 'approved';
+        // Only fill in missing values - never overwrite a status the admin has set
+        if (!v.status) v.status = 'available';
+        if (!v.approvalStatus) v.approvalStatus = 'approved';
         if (v.image && v.image.startsWith('/src/assets/images/')) {
           v.image = v.image.replace('/src/assets/images/', '/images/');
         }

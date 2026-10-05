@@ -17,7 +17,9 @@ import {
   Phone,
   LogIn,
   Sun,
-  Moon
+  Moon,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -34,10 +36,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
   // Sign In state
-  const [signInEmail, setSignInEmail] = useState<string>('tanmayrajaura28@gmail.com');
-  const [signInPassword, setSignInPassword] = useState<string>('admin123');
+  const [signInEmail, setSignInEmail] = useState<string>('');
+  const [signInPassword, setSignInPassword] = useState<string>('');
   const [signInError, setSignInError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Password visibility toggles
+  const [showSignInPassword, setShowSignInPassword] = useState<boolean>(false);
+  const [showSignUpPassword, setShowSignUpPassword] = useState<boolean>(false);
+  const [showResetCustomPassword, setShowResetCustomPassword] = useState<boolean>(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState<boolean>(false);
+  const [showLinkNewPassword, setShowLinkNewPassword] = useState<boolean>(false);
+  const [showLinkConfirmPassword, setShowLinkConfirmPassword] = useState<boolean>(false);
 
   // Sign Up state: 2 Dedicated Sections: "Owner of a car" & "Customer to rent a car"
   const [accountType, setAccountType] = useState<'vehicle_owner' | 'renter'>('vehicle_owner');
@@ -408,22 +418,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin(INITIAL_USERS[0])}
-                className={`text-left p-2.5 rounded-lg border transition-all duration-300 group cursor-pointer ${
-                  theme === 'light' 
-                    ? 'border-slate-200 bg-slate-50/50 hover:border-emerald-500/50 hover:bg-slate-100/50' 
-                    : 'border-neutral-800 bg-neutral-950 hover:border-emerald-500/50 hover:bg-neutral-900'
-                }`}
-              >
-                <div className={`flex items-center justify-between text-xs font-bold group-hover:text-emerald-600 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
-                  <span className="truncate">Vikram (Admin)</span>
-                </div>
-                <div className={`text-[10px] font-mono mt-0.5 ${theme === 'light' ? 'text-emerald-700 font-semibold' : 'text-emerald-400'}`}>Platform Admin</div>
-              </button>
-
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <button
                 type="button"
                 onClick={() => handleQuickLogin(INITIAL_USERS[1])}
@@ -479,7 +474,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               </button>
             </div>
             <p className={`text-[10px] ${theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}`}>
-              * Note: Admins sign in directly. New users can create accounts under "Owner of a car" or "Customer to rent a car".
+              * Note: Admins sign in directly with their credentials. New users can create accounts under "Owner of a car" or "Customer to rent a car".
             </p>
           </div>
         </div>
@@ -605,17 +600,34 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                       theme === 'light' ? 'text-slate-400' : 'text-neutral-500'
                     }`} />
                     <input
-                      type="password"
+                      type={showSignInPassword ? "text" : "password"}
                       required
                       value={signInPassword}
                       onChange={e => setSignInPassword(e.target.value)}
                       placeholder="Enter password"
-                      className={`w-full rounded-lg border pl-9 pr-3 py-2 text-xs transition-all duration-300 focus:outline-none ${
+                      className={`w-full rounded-lg border pl-9 pr-10 py-2 text-xs transition-all duration-300 focus:outline-none ${
                         theme === 'light'
                           ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
                           : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
                       }`}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowSignInPassword(!showSignInPassword)}
+                      className={`absolute right-3 top-2.5 p-0.5 rounded transition-colors cursor-pointer ${
+                        theme === 'light'
+                          ? 'text-slate-400 hover:text-slate-700'
+                          : 'text-neutral-500 hover:text-neutral-200'
+                      }`}
+                      title={showSignInPassword ? "Hide password" : "Show password"}
+                      aria-label={showSignInPassword ? "Hide password" : "Show password"}
+                    >
+                      {showSignInPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
@@ -779,18 +791,40 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   <label className={`block text-xs font-medium mb-1 transition-colors duration-300 ${
                     theme === 'light' ? 'text-slate-700' : 'text-neutral-300'
                   }`}>Create Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={signUpPassword}
-                    onChange={e => setSignUpPassword(e.target.value)}
-                    placeholder="Enter password"
-                    className={`w-full rounded-lg border px-3 py-2 text-xs transition-all duration-300 focus:outline-none ${
-                      theme === 'light'
-                        ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
-                        : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
-                    }`}
-                  />
+                  <div className="relative">
+                    <Lock className={`absolute left-3 top-2.5 h-4 w-4 transition-colors duration-300 ${
+                      theme === 'light' ? 'text-slate-400' : 'text-neutral-500'
+                    }`} />
+                    <input
+                      type={showSignUpPassword ? "text" : "password"}
+                      required
+                      value={signUpPassword}
+                      onChange={e => setSignUpPassword(e.target.value)}
+                      placeholder="Enter password"
+                      className={`w-full rounded-lg border pl-9 pr-10 py-2 text-xs transition-all duration-300 focus:outline-none ${
+                        theme === 'light'
+                          ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
+                          : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                      className={`absolute right-3 top-2.5 p-0.5 rounded transition-colors cursor-pointer ${
+                        theme === 'light'
+                          ? 'text-slate-400 hover:text-slate-700'
+                          : 'text-neutral-500 hover:text-neutral-200'
+                      }`}
+                      title={showSignUpPassword ? "Hide password" : "Show password"}
+                      aria-label={showSignUpPassword ? "Hide password" : "Show password"}
+                    >
+                      {showSignUpPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Section Specific Input Fields */}
@@ -974,34 +1008,60 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Create New Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={resetCustomPassword}
-                    onChange={e => setResetCustomPassword(e.target.value)}
-                    placeholder="Minimum 6 characters"
-                    className={`w-full rounded-lg border px-3 py-2 text-xs focus:outline-none ${
-                      theme === 'light'
-                        ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
-                        : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
-                    }`}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showResetCustomPassword ? "text" : "password"}
+                      required
+                      value={resetCustomPassword}
+                      onChange={e => setResetCustomPassword(e.target.value)}
+                      placeholder="Minimum 6 characters"
+                      className={`w-full rounded-lg border pl-3 pr-10 py-2 text-xs focus:outline-none ${
+                        theme === 'light'
+                          ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
+                          : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowResetCustomPassword(!showResetCustomPassword)}
+                      className={`absolute right-3 top-2.5 p-0.5 rounded transition-colors cursor-pointer ${
+                        theme === 'light' ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-neutral-200'
+                      }`}
+                      title={showResetCustomPassword ? "Hide password" : "Show password"}
+                      aria-label={showResetCustomPassword ? "Hide password" : "Show password"}
+                    >
+                      {showResetCustomPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className={`block text-xs font-medium mb-1 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Confirm New Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={resetConfirmPassword}
-                    onChange={e => setResetConfirmPassword(e.target.value)}
-                    placeholder="Re-enter your new password"
-                    className={`w-full rounded-lg border px-3 py-2 text-xs focus:outline-none ${
-                      theme === 'light'
-                        ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
-                        : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
-                    }`}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showResetConfirmPassword ? "text" : "password"}
+                      required
+                      value={resetConfirmPassword}
+                      onChange={e => setResetConfirmPassword(e.target.value)}
+                      placeholder="Re-enter your new password"
+                      className={`w-full rounded-lg border pl-3 pr-10 py-2 text-xs focus:outline-none ${
+                        theme === 'light'
+                          ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
+                          : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                      className={`absolute right-3 top-2.5 p-0.5 rounded transition-colors cursor-pointer ${
+                        theme === 'light' ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-neutral-200'
+                      }`}
+                      title={showResetConfirmPassword ? "Hide password" : "Show password"}
+                      aria-label={showResetConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showResetConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className={`flex items-center justify-between pt-2 border-t ${theme === 'light' ? 'border-slate-100' : 'border-neutral-800'}`}>
@@ -1097,34 +1157,60 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <form onSubmit={handleCompleteLinkResetSubmit} className="space-y-3">
                   <div>
                     <label className={`block text-xs font-medium mb-1 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Enter New Customized Password</label>
-                    <input
-                      type="password"
-                      required
-                      value={linkNewPassword}
-                      onChange={e => setLinkNewPassword(e.target.value)}
-                      placeholder="Minimum 6 characters"
-                      className={`w-full rounded-lg border px-3 py-2 text-xs focus:outline-none ${
-                        theme === 'light'
-                          ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
-                          : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
-                      }`}
-                    />
+                    <div className="relative">
+                      <input
+                        type={showLinkNewPassword ? "text" : "password"}
+                        required
+                        value={linkNewPassword}
+                        onChange={e => setLinkNewPassword(e.target.value)}
+                        placeholder="Minimum 6 characters"
+                        className={`w-full rounded-lg border pl-3 pr-10 py-2 text-xs focus:outline-none ${
+                          theme === 'light'
+                            ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
+                            : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLinkNewPassword(!showLinkNewPassword)}
+                        className={`absolute right-3 top-2.5 p-0.5 rounded transition-colors cursor-pointer ${
+                          theme === 'light' ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-neutral-200'
+                        }`}
+                        title={showLinkNewPassword ? "Hide password" : "Show password"}
+                        aria-label={showLinkNewPassword ? "Hide password" : "Show password"}
+                      >
+                        {showLinkNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div>
                     <label className={`block text-xs font-medium mb-1 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>Confirm New Password</label>
-                    <input
-                      type="password"
-                      required
-                      value={linkConfirmPassword}
-                      onChange={e => setLinkConfirmPassword(e.target.value)}
-                      placeholder="Re-enter your new customized password"
-                      className={`w-full rounded-lg border px-3 py-2 text-xs focus:outline-none ${
-                        theme === 'light'
-                          ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
-                          : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
-                      }`}
-                    />
+                    <div className="relative">
+                      <input
+                        type={showLinkConfirmPassword ? "text" : "password"}
+                        required
+                        value={linkConfirmPassword}
+                        onChange={e => setLinkConfirmPassword(e.target.value)}
+                        placeholder="Re-enter your new customized password"
+                        className={`w-full rounded-lg border pl-3 pr-10 py-2 text-xs focus:outline-none ${
+                          theme === 'light'
+                            ? 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
+                            : 'border-neutral-800 bg-neutral-950 text-white placeholder-neutral-500 focus:border-emerald-500'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLinkConfirmPassword(!showLinkConfirmPassword)}
+                        className={`absolute right-3 top-2.5 p-0.5 rounded transition-colors cursor-pointer ${
+                          theme === 'light' ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-neutral-200'
+                        }`}
+                        title={showLinkConfirmPassword ? "Hide password" : "Show password"}
+                        aria-label={showLinkConfirmPassword ? "Hide password" : "Show password"}
+                      >
+                        {showLinkConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div className={`flex justify-end gap-2 pt-2 border-t ${theme === 'light' ? 'border-slate-100' : 'border-neutral-800'}`}>
