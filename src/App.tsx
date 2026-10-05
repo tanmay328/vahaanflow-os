@@ -357,10 +357,69 @@ export default function App() {
     showToast('🎉 Booking Confirmed', `Booking ${newBooking.bookingCode} confirmed! Email confirmation sent.`, 'success');
   };
 
+  const handleCancelBooking = async (bookingId: string, reason: string) => {
+    const target = bookings.find(b => b.id === bookingId);
+    if (!target) return;
+
+    const updated: Booking = { 
+      ...target, 
+      status: 'cancelled',
+      cancellationReason: reason,
+      cancelledAt: new Date().toISOString(),
+      cancelledBy: currentUser?.name || 'User'
+    };
+
+    // 1. Immediately update React state for instant UI re-render
+    setBookings(prev => prev.map(b => b.id === bookingId ? updated : b));
+
+    // 2. Immediately free up vehicle in React state
+    setVehicles(prev => prev.map(v => v.id === target.vehicleId ? { ...v, status: 'available' } : v));
+
+    // 3. Persist to storage and Firestore
+    try {
+      await RentalStorageService.saveBooking(updated);
+      const targetVehicle = vehicles.find(v => v.id === target.vehicleId);
+      if (targetVehicle && (targetVehicle.status === 'booked' || targetVehicle.status === 'on_trip')) {
+        await RentalStorageService.saveVehicle({ ...targetVehicle, status: 'available' });
+      }
+    } catch (err) {
+      console.warn('Error persisting booking cancellation:', err);
+    }
+
+    // 4. Log audit trail
+    const auditRole = currentUser?.role || 'renter';
+    await RentalStorageService.logAudit({
+      category: 'BOOKING',
+      action: 'Booking Cancelled',
+      summary: `Booking ${target.bookingCode} for ${target.vehicle?.make || 'Car'} ${target.vehicle?.model || ''} was cancelled. Reason: "${reason}".`,
+      actor: {
+        id: currentUser?.id || 'usr',
+        name: currentUser?.name || 'User',
+        role: auditRole,
+        ip: '127.0.0.1',
+      },
+      bookingCode: target.bookingCode,
+      vehiclePlate: target.vehicle?.licensePlate,
+      severity: 'notice',
+    });
+
+    // 5. Notify admin/parties via email
+    EmailService.notifyAdmin({
+      eventTitle: 'Booking Cancelled by User',
+      actorName: currentUser?.name || 'User',
+      actorRole: auditRole === 'admin' ? 'Admin' : (auditRole === 'vehicle_owner' ? 'Car Owner' : 'Customer'),
+      actorEmail: currentUser?.email || target.customer?.email || 'N/A',
+      summaryText: `Reservation ${target.bookingCode} for ${target.vehicle?.make} ${target.vehicle?.model} (${target.vehicle?.licensePlate}) was cancelled. Reason: "${reason}".`,
+    }).catch(console.warn);
+
+    showToast('Booking Cancelled', `Reservation ${target.bookingCode} has been cancelled.`, 'info');
+  };
+
   const handleOwnerApproveBooking = async (bookingId: string) => {
     const target = bookings.find(b => b.id === bookingId);
     if (!target) return;
     const updated: Booking = { ...target, ownerApprovalStatus: 'approved' };
+    setBookings(prev => prev.map(b => b.id === bookingId ? updated : b));
     await RentalStorageService.saveBooking(updated);
 
     await RentalStorageService.logAudit({
@@ -394,8 +453,11 @@ export default function App() {
       ...target, 
       status: 'cancelled', 
       ownerApprovalStatus: 'declined', 
-      ownerApprovalNotes: reason 
+      ownerApprovalNotes: reason,
+      cancellationReason: reason
     };
+    setBookings(prev => prev.map(b => b.id === bookingId ? updated : b));
+    setVehicles(prev => prev.map(v => v.id === target.vehicleId ? { ...v, status: 'available' } : v));
     await RentalStorageService.saveBooking(updated);
 
     // Free the car
@@ -444,18 +506,22 @@ export default function App() {
         customerSignature: details.customerSignature,
       },
     };
-    await RentalStorageService.saveBooking(updatedBooking);
+    setBookings(prev => prev.map(b => b.id === bookingId ? updatedBooking : b));
 
     // Set vehicle status to on_trip
     const targetVeh = vehicles.find(v => v.id === target.vehicleId);
     if (targetVeh) {
-      await RentalStorageService.saveVehicle({
+      const updatedVeh: Vehicle = {
         ...targetVeh,
         status: 'on_trip',
         odometer: details.startOdometer,
         fuelOrBatteryPct: details.startFuelPct,
-      });
+      };
+      setVehicles(prev => prev.map(v => v.id === targetVeh.id ? updatedVeh : v));
+      await RentalStorageService.saveVehicle(updatedVeh);
     }
+
+    await RentalStorageService.saveBooking(updatedBooking);
 
     await RentalStorageService.logAudit({
       category: 'CHECK_OUT',
@@ -505,18 +571,22 @@ export default function App() {
         settlementAdjustmentNotes: `Refund of ₹${details.netDepositRefund} authorized after ₹${details.totalDeductions} total deductions.`,
       },
     };
-    await RentalStorageService.saveBooking(updatedBooking);
+    setBookings(prev => prev.map(b => b.id === bookingId ? updatedBooking : b));
 
     // Free the vehicle and update odometer
     const targetVeh = vehicles.find(v => v.id === target.vehicleId);
     if (targetVeh) {
-      await RentalStorageService.saveVehicle({
+      const updatedVeh: Vehicle = {
         ...targetVeh,
         status: 'available',
         odometer: details.endOdometer,
         fuelOrBatteryPct: details.endFuelPct,
-      });
+      };
+      setVehicles(prev => prev.map(v => v.id === targetVeh.id ? updatedVeh : v));
+      await RentalStorageService.saveVehicle(updatedVeh);
     }
+
+    await RentalStorageService.saveBooking(updatedBooking);
 
     await RentalStorageService.logAudit({
       category: 'CHECK_IN',
@@ -545,6 +615,7 @@ export default function App() {
       ...target,
       customer: { ...target.customer, kycStatus: 'verified' },
     };
+    setBookings(prev => prev.map(b => b.id === bookingId ? updated : b));
     await RentalStorageService.saveBooking(updated);
     showToast('KYC Approved', `Verified documents for ${target.customer.name}.`, 'success');
   };
@@ -556,6 +627,7 @@ export default function App() {
       ...target,
       customer: { ...target.customer, kycStatus: 'rejected' },
     };
+    setBookings(prev => prev.map(b => b.id === bookingId ? updated : b));
     await RentalStorageService.saveBooking(updated);
 
     await RentalStorageService.logAudit({
@@ -766,13 +838,7 @@ export default function App() {
               onOpenCheckOut={(b) => setCheckOutBookingTarget(b)}
               onOpenCheckIn={(b) => setCheckInBookingTarget(b)}
               onViewAgreement={(b) => setAgreementBookingTarget(b)}
-              onCancelBooking={(bId, r) => {
-                const b = bookings.find(item => item.id === bId);
-                if (b) {
-                  RentalStorageService.saveBooking({ ...b, status: 'cancelled' });
-                  showToast('Booking Cancelled', `Reservation cancelled. Reason: ${r}`, 'info');
-                }
-              }}
+              onCancelBooking={handleCancelBooking}
               onOpenNewBooking={() => {
                 setPreselectedVehicleForBooking(null);
                 setNewBookingModalOpen(true);

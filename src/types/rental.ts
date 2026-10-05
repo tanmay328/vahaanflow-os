@@ -145,6 +145,9 @@ export interface Booking {
   payoutRef?: string;
   
   createdAt: string;
+  cancellationReason?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
 
   // Check-Out Handover Data
   dispatchCheckOut?: {

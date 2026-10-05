@@ -313,7 +313,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 VahaanFlow
               </span>
               <span className={`text-[10px] font-mono ${theme === 'dark' ? 'text-neutral-400' : 'text-slate-500'}`}>
-                Easy Car Rental & Fleet System for India
+                Smart Car Rental & Fleet Platform
               </span>
             </div>
           </div>
@@ -344,39 +344,39 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       {/* Main Grid */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center flex-1">
         
-        {/* Left Column: Simple overview for Indian users */}
+        {/* Left Column: Clean Overview */}
         <div className="lg:col-span-6 space-y-6">
           <div className="space-y-3">
             <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-mono transition-colors duration-300 ${
               theme === 'light' ? 'border-emerald-300 bg-emerald-500/10 text-emerald-800 font-semibold' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
             }`}>
-              <span>SIMPLE 2-ROLE SYSTEM</span>
+              <span>Fleet & Rental Platform</span>
             </div>
 
             <h1 className={`text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight transition-colors duration-300 ${
               theme === 'light' ? 'text-slate-900' : 'text-white'
             }`}>
-              Car rental & fleet management, <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">made very easy</span>.
+              Car Rental & <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">Fleet Management</span>
             </h1>
 
             <p className={`text-sm leading-relaxed transition-colors duration-300 ${
               theme === 'light' ? 'text-slate-600' : 'text-neutral-400'
             }`}>
-              Login as <strong className={theme === 'light' ? 'text-slate-900 font-bold' : 'text-white'}>Admin</strong> to operate the fleet, register as an <strong className={theme === 'light' ? 'text-slate-900 font-bold' : 'text-white'}>Owner of a car</strong> to earn rental income, or register as a <strong className={theme === 'light' ? 'text-slate-900 font-bold' : 'text-white'}>Customer to rent a car</strong> for self-drive trips.
+              Rent verified self-drive vehicles or list your car to start earning.
             </p>
           </div>
 
-          {/* Role Cards in plain words */}
+          {/* Role Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
             <div className={`rounded-xl border p-3.5 space-y-1.5 transition-all duration-300 ${
               theme === 'light' ? 'border-slate-200 bg-white shadow-sm text-slate-800' : 'border-neutral-800 bg-neutral-900/60 text-neutral-100'
             }`}>
               <div className={`flex items-center gap-1.5 text-xs font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                 <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
-                <span>1. Admin</span>
+                <span>Admin</span>
               </div>
               <p className={`text-[11px] leading-relaxed ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
-                Manages cars, returns, damages & owner payouts. (Login only)
+                Fleet operations, inspections & payouts.
               </p>
             </div>
 
@@ -385,10 +385,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             }`}>
               <div className={`flex items-center gap-1.5 text-xs font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                 <Car className="h-4 w-4 text-emerald-500 shrink-0" />
-                <span>2. Owner of a Car</span>
+                <span>Car Owner</span>
               </div>
               <p className={`text-[11px] leading-relaxed ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
-                Give your car for rent, block dates, track bookings & earnings.
+                List vehicles, block dates & track earnings.
               </p>
             </div>
 
@@ -397,24 +397,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             }`}>
               <div className={`flex items-center gap-1.5 text-xs font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                 <KeyRound className="h-4 w-4 text-blue-500 shrink-0" />
-                <span>3. Customer</span>
+                <span>Customer</span>
               </div>
               <p className={`text-[11px] leading-relaxed ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
-                Rent & self-drive verified cars for trips with per-km rates.
+                Rent & self-drive cars with quick KYC.
               </p>
             </div>
           </div>
 
-          {/* Quick 1-Click Switch Demo Accounts */}
+          {/* Quick Demo Accounts */}
           <div className={`rounded-xl border p-4 space-y-2.5 transition-all duration-300 ${
             theme === 'light' ? 'border-slate-200 bg-white/70 shadow-sm text-slate-800' : 'border-neutral-800 bg-neutral-900/40 text-neutral-100'
           }`}>
             <div className="flex items-center justify-between">
               <span className={`text-xs font-bold ${theme === 'light' ? 'text-slate-900' : 'text-neutral-200'}`}>
-                ⚡ Quick Demo Accounts (1-Click Login)
+                ⚡ Quick Demo Login
               </span>
               <span className={`text-[10px] font-mono ${theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}`}>
-                Click to test any role
+                Click to test
               </span>
             </div>
 
@@ -429,9 +429,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 }`}
               >
                 <div className={`flex items-center justify-between text-xs font-bold group-hover:text-emerald-600 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
-                  <span className="truncate">Suresh (Owner)</span>
+                  <span className="truncate">Suresh</span>
                 </div>
-                <div className={`text-[10px] font-mono mt-0.5 ${theme === 'light' ? 'text-teal-700 font-semibold' : 'text-teal-400'}`}>Owner of a Car</div>
+                <div className={`text-[10px] font-mono mt-0.5 ${theme === 'light' ? 'text-teal-700 font-semibold' : 'text-teal-400'}`}>Car Owner</div>
               </button>
 
               <button
@@ -444,9 +444,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 }`}
               >
                 <div className={`flex items-center justify-between text-xs font-bold group-hover:text-emerald-600 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
-                  <span className="truncate">Anita (EV Fleet)</span>
+                  <span className="truncate">Anita</span>
                 </div>
-                <div className={`text-[10px] font-mono mt-0.5 ${theme === 'light' ? 'text-teal-700 font-semibold' : 'text-teal-400'}`}>Owner of a Car</div>
+                <div className={`text-[10px] font-mono mt-0.5 ${theme === 'light' ? 'text-teal-700 font-semibold' : 'text-teal-400'}`}>Fleet Owner</div>
               </button>
 
               <button
@@ -468,14 +468,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 }`}
               >
                 <div className={`flex items-center justify-between text-xs font-bold group-hover:text-blue-600 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
-                  <span className="truncate">Rahul (Customer)</span>
+                  <span className="truncate">Rahul</span>
                 </div>
-                <div className={`text-[10px] font-mono mt-0.5 ${theme === 'light' ? 'text-blue-700 font-semibold' : 'text-blue-400'}`}>Customer to Rent</div>
+                <div className={`text-[10px] font-mono mt-0.5 ${theme === 'light' ? 'text-blue-700 font-semibold' : 'text-blue-400'}`}>Customer</div>
               </button>
             </div>
-            <p className={`text-[10px] ${theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}`}>
-              * Note: Admins sign in directly with their credentials. New users can create accounts under "Owner of a car" or "Customer to rent a car".
-            </p>
           </div>
         </div>
 

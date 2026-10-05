@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Vehicle, Booking } from '../../types/rental';
+import React, { useState, useEffect } from 'react';
+import { Vehicle, Booking, INDIAN_LOCATIONS } from '../../types/rental';
 import { UserProfile } from '../../types/auth';
 import { EmailService } from '../../services/emailService';
 import { RentalStorageService } from '../../services/rentalStorage';
@@ -69,8 +69,19 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
     selectedVehicle?.currentLocation?.hubName || 'Kempegowda Int\'l Airport (BLR) Hub'
   );
 
+  useEffect(() => {
+    if (selectedVehicle?.currentLocation?.hubName) {
+      setPickupLocation(selectedVehicle.currentLocation.hubName);
+      setDropoffLocation(selectedVehicle.currentLocation.hubName);
+    }
+  }, [selectedVehicleId]);
+
+  const uniqueCities = Array.from(new Set(INDIAN_LOCATIONS.map(l => l.city)));
+
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showDoubleConfirm, setShowDoubleConfirm] = useState<boolean>(false);
+  const [termsAgreed, setTermsAgreed] = useState<boolean>(false);
 
   // Day calculation
   const start = new Date(startDate);
@@ -86,7 +97,7 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
   const gstAmount = Math.round(totalRental * 0.18);
   const ownerNetShare = totalRental - platformCommission;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleInitialFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVehicle) {
       setErrorMessage('Please choose an available vehicle to book.');
@@ -97,6 +108,18 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
       setErrorMessage('Please provide customer name and email address.');
       return;
     }
+
+    if (!drivingLicense.trim()) {
+      setErrorMessage('Please provide a valid Driving License number.');
+      return;
+    }
+
+    setErrorMessage(null);
+    setShowDoubleConfirm(true);
+  };
+
+  const handleFinalConfirmBooking = async () => {
+    if (!selectedVehicle) return;
 
     setIsSubmitting(true);
     setErrorMessage(null);
@@ -161,6 +184,7 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
     } catch (err: any) {
       setErrorMessage(err?.message || 'Failed to confirm booking. Please try again.');
       setIsSubmitting(false);
+      setShowDoubleConfirm(false);
     }
   };
 
@@ -193,7 +217,7 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
         </div>
 
         {/* Scrollable Form */}
-        <form onSubmit={handleSubmit} className={`p-6 overflow-y-auto space-y-5 text-xs transition-colors duration-300 ${
+        <form onSubmit={handleInitialFormSubmit} className={`p-6 overflow-y-auto space-y-5 text-xs transition-colors duration-300 ${
           theme === 'light' ? 'text-slate-700 bg-white' : 'text-neutral-300 bg-neutral-900'
         }`}>
           
@@ -301,6 +325,85 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
                       : 'border-neutral-800 bg-neutral-900 text-white focus:border-emerald-500'
                   }`}
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Pickup Point & Return Hub Selection */}
+          <div className={`rounded-xl border p-4 space-y-3 transition-colors duration-300 ${
+            theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-neutral-800 bg-neutral-950/60'
+          }`}>
+            <div className="flex items-center justify-between">
+              <label className={`block text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>
+                <MapPin className="h-4 w-4 text-emerald-500" />
+                <span>Pickup & Return Station</span>
+              </label>
+              {selectedVehicle?.currentLocation?.city && (
+                <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                  theme === 'light' 
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold' 
+                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                }`}>
+                  Vehicle Base: {selectedVehicle.currentLocation.city}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={`text-[11px] mb-1 block font-medium ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
+                  Select Pickup Point / Hub
+                </label>
+                <select
+                  value={pickupLocation}
+                  onChange={e => {
+                    const newPickup = e.target.value;
+                    setPickupLocation(newPickup);
+                    if (dropoffLocation === pickupLocation) {
+                      setDropoffLocation(newPickup);
+                    }
+                  }}
+                  className={`w-full rounded-lg border px-3 py-2 text-xs focus:outline-none transition-colors ${
+                    theme === 'light'
+                      ? 'border-slate-300 bg-white text-slate-900 focus:border-emerald-600'
+                      : 'border-neutral-800 bg-neutral-900 text-white focus:border-emerald-500'
+                  }`}
+                >
+                  {uniqueCities.map(city => (
+                    <optgroup key={city} label={`${city} Hubs`}>
+                      {INDIAN_LOCATIONS.filter(loc => loc.city === city).map(loc => (
+                        <option key={loc.hubName} value={loc.hubName}>
+                          {loc.hubName}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={`text-[11px] mb-1 block font-medium ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
+                  Select Return Point / Hub
+                </label>
+                <select
+                  value={dropoffLocation}
+                  onChange={e => setDropoffLocation(e.target.value)}
+                  className={`w-full rounded-lg border px-3 py-2 text-xs focus:outline-none transition-colors ${
+                    theme === 'light'
+                      ? 'border-slate-300 bg-white text-slate-900 focus:border-emerald-600'
+                      : 'border-neutral-800 bg-neutral-900 text-white focus:border-emerald-500'
+                  }`}
+                >
+                  {uniqueCities.map(city => (
+                    <optgroup key={city} label={`${city} Hubs`}>
+                      {INDIAN_LOCATIONS.filter(loc => loc.city === city).map(loc => (
+                        <option key={loc.hubName} value={loc.hubName}>
+                          {loc.hubName}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -446,14 +549,151 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
               disabled={isSubmitting}
               className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold transition-colors shadow-lg flex items-center gap-2 cursor-pointer"
             >
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>{isSubmitting ? 'Confirming...' : 'Confirm Booking'}</span>
+              <ShieldCheck className="h-4 w-4" />
+              <span>Review & Confirm Booking</span>
             </button>
           </div>
 
         </form>
 
       </div>
+
+      {/* DOUBLE CONFIRMATION MODAL FOR BOOKING */}
+      {showDoubleConfirm && selectedVehicle && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 overflow-y-auto">
+          <div className={`relative w-full max-w-lg rounded-2xl border p-6 shadow-2xl space-y-5 transition-all duration-300 ${
+            theme === 'light' ? 'border-slate-200 bg-white text-slate-900' : 'border-neutral-800 bg-neutral-900 text-neutral-100'
+          }`}>
+            
+            {/* Header */}
+            <div className="flex items-start gap-3.5 border-b pb-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
+                <ShieldCheck className="h-6 w-6" />
+              </div>
+              <div className="space-y-0.5">
+                <h3 className={`text-base font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                  Confirm Vehicle Reservation
+                </h3>
+                <p className={`text-xs ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Double-check your trip schedule, pickup station, and payment summary
+                </p>
+              </div>
+            </div>
+
+            {/* Car & Trip Summary Box */}
+            <div className={`rounded-xl border p-3.5 space-y-2.5 text-xs ${
+              theme === 'light' ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-neutral-800 bg-neutral-950/60 text-neutral-300'
+            }`}>
+              <div className="flex items-center gap-3 border-b pb-2">
+                <img
+                  src={cleanImageUrl(selectedVehicle.image)}
+                  alt={selectedVehicle.model}
+                  className="h-12 w-16 object-cover rounded-lg border border-neutral-800"
+                />
+                <div>
+                  <div className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                    {selectedVehicle.make} {selectedVehicle.model}
+                  </div>
+                  <div className="font-mono text-[11px] text-slate-500">
+                    {selectedVehicle.licensePlate} &middot; {selectedVehicle.category.toUpperCase()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Station & Schedule Info */}
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Pickup Station</span>
+                  <span className="font-medium text-emerald-600 truncate block">{pickupLocation}</span>
+                  <span className="text-slate-500 text-[10px]">{startDate} ({pickupTime})</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Return Station</span>
+                  <span className="font-medium text-teal-600 truncate block">{dropoffLocation}</span>
+                  <span className="text-slate-500 text-[10px]">{endDate} ({returnTime})</span>
+                </div>
+              </div>
+
+              {/* Renter info */}
+              <div className="border-t pt-2 text-[11px] flex items-center justify-between">
+                <span>Renter: <strong className={theme === 'light' ? 'text-slate-900' : 'text-white'}>{customerName}</strong></span>
+                <span className="font-mono text-slate-500">DL: {drivingLicense}</span>
+              </div>
+            </div>
+
+            {/* Financial Ledger */}
+            <div className={`p-3 rounded-xl border space-y-1.5 text-xs ${
+              theme === 'light' ? 'border-emerald-200 bg-emerald-50/50' : 'border-emerald-500/20 bg-emerald-500/5'
+            }`}>
+              <div className="flex justify-between font-bold">
+                <span>Total Trip Cost ({totalDays} Days)</span>
+                <span className="font-mono text-sm text-emerald-600">₹{totalRental.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-slate-500">
+                <span>Refundable Escrow Deposit</span>
+                <span className="font-mono font-semibold">₹{depositAmount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-slate-500">
+                <span>Includes GST (18%)</span>
+                <span className="font-mono">₹{gstAmount.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Double-Confirmation Terms Checkbox */}
+            <label className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer select-none transition-colors ${
+              termsAgreed
+                ? (theme === 'light' ? 'border-emerald-300 bg-emerald-50/50' : 'border-emerald-500/30 bg-emerald-500/10')
+                : (theme === 'light' ? 'border-slate-200 bg-slate-50/80 hover:bg-slate-100' : 'border-neutral-800 bg-neutral-950/40 hover:bg-neutral-900')
+            }`}>
+              <input
+                type="checkbox"
+                checked={termsAgreed}
+                onChange={e => setTermsAgreed(e.target.checked)}
+                className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4"
+              />
+              <span className={`text-xs leading-relaxed ${theme === 'light' ? 'text-slate-800' : 'text-neutral-200'}`}>
+                <strong>I verify that all reservation details and driver KYC information are accurate.</strong> I agree to the fuel policy and return inspection terms.
+              </span>
+            </label>
+
+            {/* Actions */}
+            <div className={`flex items-center justify-end gap-3 pt-3 border-t ${theme === 'light' ? 'border-slate-200' : 'border-neutral-800'}`}>
+              <button
+                type="button"
+                onClick={() => setShowDoubleConfirm(false)}
+                disabled={isSubmitting}
+                className={`px-4 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                  theme === 'light'
+                    ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                    : 'border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                }`}
+              >
+                Back to Edit
+              </button>
+
+              <button
+                type="button"
+                disabled={!termsAgreed || isSubmitting}
+                onClick={handleFinalConfirmBooking}
+                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs shadow-lg transition-colors cursor-pointer flex items-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Confirming...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Yes, Confirm & Reserve Car</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };

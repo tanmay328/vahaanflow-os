@@ -36,6 +36,24 @@ const STORAGE_KEYS = {
   SETTINGS: 'vahaanflow_settings_v3',
 };
 
+// Strips undefined fields which cause Firestore setDoc to throw errors
+function cleanForFirestore<T>(obj: T): any {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanForFirestore(item));
+  }
+  if (typeof obj === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== undefined) {
+        cleaned[k] = cleanForFirestore(v);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export class RentalStorageService {
   // Sync all collections from Firestore in real-time
   static initFirestoreSync(callbacks: {
@@ -201,13 +219,21 @@ export class RentalStorageService {
       list.push(vehicle);
     }
     localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(list));
-    await setDoc(doc(db, 'vehicles', vehicle.id), vehicle, { merge: true });
+    try {
+      await setDoc(doc(db, 'vehicles', vehicle.id), cleanForFirestore(vehicle), { merge: true });
+    } catch (e) {
+      console.warn('Vehicle Firestore save error:', e);
+    }
   }
 
   static async deleteVehicle(id: string): Promise<void> {
     const list = this.getVehicles().filter(v => v.id !== id);
     localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(list));
-    await deleteDoc(doc(db, 'vehicles', id));
+    try {
+      await deleteDoc(doc(db, 'vehicles', id));
+    } catch (e) {
+      console.warn('Vehicle Firestore delete error:', e);
+    }
   }
 
   // --- BOOKINGS ---
@@ -229,7 +255,11 @@ export class RentalStorageService {
       list.unshift(booking);
     }
     localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(list));
-    await setDoc(doc(db, 'bookings', booking.id), booking, { merge: true });
+    try {
+      await setDoc(doc(db, 'bookings', booking.id), cleanForFirestore(booking), { merge: true });
+    } catch (e) {
+      console.warn('Booking Firestore save error:', e);
+    }
   }
 
   // --- AUDIT LOGS (Strictly Immutable, append-only) ---
@@ -255,7 +285,7 @@ export class RentalStorageService {
 
     // Append to Firestore (immutable per security rules)
     try {
-      await setDoc(doc(db, 'auditLogs', newRecord.id), newRecord);
+      await setDoc(doc(db, 'auditLogs', newRecord.id), cleanForFirestore(newRecord));
     } catch (e) {
       console.warn('Audit log write error:', e);
     }
@@ -281,7 +311,11 @@ export class RentalStorageService {
       list.unshift(payout);
     }
     localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(list));
-    await setDoc(doc(db, 'payouts', payout.id), payout, { merge: true });
+    try {
+      await setDoc(doc(db, 'payouts', payout.id), cleanForFirestore(payout), { merge: true });
+    } catch (e) {
+      console.warn('Payout Firestore save error:', e);
+    }
   }
 
   // --- DISPUTES ---
@@ -312,7 +346,11 @@ export class RentalStorageService {
       list.unshift(dispute);
     }
     localStorage.setItem(STORAGE_KEYS.DISPUTES, JSON.stringify(list));
-    await setDoc(doc(db, 'disputes', dispute.id), dispute, { merge: true });
+    try {
+      await setDoc(doc(db, 'disputes', dispute.id), cleanForFirestore(dispute), { merge: true });
+    } catch (e) {
+      console.warn('Dispute Firestore save error:', e);
+    }
   }
 
   // --- MAINTENANCE ---
@@ -334,7 +372,11 @@ export class RentalStorageService {
       list.unshift(maint);
     }
     localStorage.setItem(STORAGE_KEYS.MAINTENANCE, JSON.stringify(list));
-    await setDoc(doc(db, 'maintenance', maint.id), maint, { merge: true });
+    try {
+      await setDoc(doc(db, 'maintenance', maint.id), cleanForFirestore(maint), { merge: true });
+    } catch (e) {
+      console.warn('Maintenance Firestore save error:', e);
+    }
   }
 
   // --- PLATFORM SETTINGS ---
@@ -349,6 +391,10 @@ export class RentalStorageService {
 
   static async saveSettings(settings: PlatformSettings): Promise<void> {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-    await setDoc(doc(db, 'settings', 'platform_config'), settings, { merge: true });
+    try {
+      await setDoc(doc(db, 'settings', 'platform_config'), cleanForFirestore(settings), { merge: true });
+    } catch (e) {
+      console.warn('Settings Firestore save error:', e);
+    }
   }
 }
