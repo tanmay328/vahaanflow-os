@@ -57,6 +57,13 @@ export const ReturnDossierModal: React.FC<ReturnDossierModalProps> = ({
   const odoStart = checkOut?.startOdometer || 0;
   const odoEnd = checkIn?.endOdometer || 0;
   const kmDriven = Math.max(0, odoEnd - odoStart);
+  const depositAmount = booking.depositAmount ?? 10000;
+  const excessKmCharge = checkIn?.excessKmCharge || 0;
+  const fuelPenaltyCharge = checkIn?.fuelPenaltyCharge || 0;
+  const damageCharge = checkIn?.damageCharge || 0;
+  const tollExpenses = checkIn?.manualTollExpenses || 0;
+  const totalDeductions = checkIn?.totalDeductions || (excessKmCharge + fuelPenaltyCharge + damageCharge + tollExpenses);
+  const netRefund = checkIn?.netDepositRefund !== undefined ? checkIn.netDepositRefund : Math.max(0, depositAmount - totalDeductions);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm overflow-y-auto">
@@ -148,17 +155,17 @@ export const ReturnDossierModal: React.FC<ReturnDossierModalProps> = ({
               <div className={`text-[10px] uppercase font-bold font-sans ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>KM Summary</div>
               <div className="flex justify-between mt-1">
                 <span className={theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}>Start KM:</span>
-                <span className="font-mono">{odoStart.toLocaleString()} km</span>
+                <span className="font-mono">{(odoStart || 0).toLocaleString()} km</span>
               </div>
               <div className="flex justify-between">
                 <span className={theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}>End KM:</span>
-                <span className="font-mono">{odoEnd.toLocaleString()} km</span>
+                <span className="font-mono">{(odoEnd || 0).toLocaleString()} km</span>
               </div>
               <div className={`flex justify-between font-bold border-t pt-1 mt-1 print:text-black ${
                 theme === 'light' ? 'border-slate-200 text-slate-900' : 'border-neutral-800 text-white'
               }`}>
                 <span>Total Driven:</span>
-                <span className="font-mono">{kmDriven.toLocaleString()} km</span>
+                <span className="font-mono">{(kmDriven || 0).toLocaleString()} km</span>
               </div>
             </div>
 
@@ -193,23 +200,23 @@ export const ReturnDossierModal: React.FC<ReturnDossierModalProps> = ({
             }`}>
               <div className="flex justify-between py-1">
                 <span>Security Deposit Paid by Customer</span>
-                <span className={`font-bold font-mono ${theme === 'light' ? 'text-slate-900' : 'text-white'} print:text-black`}>₹{booking.depositAmount.toLocaleString()}</span>
+                <span className={`font-bold font-mono ${theme === 'light' ? 'text-slate-900' : 'text-white'} print:text-black`}>₹{(depositAmount || 0).toLocaleString()}</span>
               </div>
               <div className={`flex justify-between py-1 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
                 <span>Extra KM Charges ({checkIn?.excessKm || 0} km)</span>
-                <span className="font-mono">-₹{checkIn?.excessKmCharge || 0}</span>
+                <span className="font-mono">-₹{(excessKmCharge || 0).toLocaleString()}</span>
               </div>
               <div className={`flex justify-between py-1 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
                 <span>Fuel Shortage Charge</span>
-                <span className="font-mono">-₹{checkIn?.fuelPenaltyCharge || 0}</span>
+                <span className="font-mono">-₹{(fuelPenaltyCharge || 0).toLocaleString()}</span>
               </div>
               <div className={`flex justify-between py-1 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
                 <span>Car Damage / Scratch Repair Cost</span>
-                <span className="font-mono">-₹{checkIn?.damageCharge || 0}</span>
+                <span className="font-mono">-₹{(damageCharge || 0).toLocaleString()}</span>
               </div>
               <div className={`flex justify-between py-1 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
                 <span>Highway Toll Charges</span>
-                <span className="font-mono">-₹{checkIn?.manualTollExpenses || 0}</span>
+                <span className="font-mono">-₹{(tollExpenses || 0).toLocaleString()}</span>
               </div>
               
               {/* Penalty list with reasons */}
@@ -217,7 +224,7 @@ export const ReturnDossierModal: React.FC<ReturnDossierModalProps> = ({
                 <div key={p.id} className={`flex justify-between py-1 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
                   <span className="truncate pr-2">Charge: {p.reason} {p.waived && '(WAIVED)'}</span>
                   <span className={`font-mono ${p.waived ? (theme === 'light' ? 'line-through text-slate-400' : 'line-through text-neutral-600') : ''}`}>
-                    {p.waived ? '₹0' : `-₹${p.amount}`}
+                    {p.waived ? '₹0' : `-₹${(p.amount || 0).toLocaleString()}`}
                   </span>
                 </div>
               ))}
@@ -226,14 +233,14 @@ export const ReturnDossierModal: React.FC<ReturnDossierModalProps> = ({
                 theme === 'light' ? 'text-rose-600 border-slate-200' : 'text-red-400 border-neutral-800'
               }`}>
                 <span>Total Deductions</span>
-                <span className="font-mono">-₹{checkIn?.totalDeductions || 0}</span>
+                <span className="font-mono">-₹{(totalDeductions || 0).toLocaleString()}</span>
               </div>
 
               <div className={`flex justify-between py-2 text-sm font-extrabold border-t ${
                 theme === 'light' ? 'text-emerald-700 border-slate-200' : 'text-emerald-400 border-neutral-750'
               } print:text-emerald-700`}>
                 <span>Refund Paid to Customer UPI</span>
-                <span className="font-mono text-base">₹{(checkIn?.netDepositRefund ?? booking.depositAmount).toLocaleString()}</span>
+                <span className="font-mono text-base">₹{(netRefund || 0).toLocaleString()}</span>
               </div>
             </div>
           </div>

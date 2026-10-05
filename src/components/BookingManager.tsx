@@ -7,17 +7,18 @@ import {
   FileText, 
   KeyRound, 
   CheckCircle2, 
-  CreditCard,
-  Car,
-  Clock,
-  ShieldCheck,
-  MapPin,
-  QrCode,
-  Fuel,
-  Info,
-  ChevronRight,
-  Phone,
-  AlertTriangle
+  CreditCard, 
+  Car, 
+  Clock, 
+  ShieldCheck, 
+  MapPin, 
+  QrCode, 
+  Fuel, 
+  Info, 
+  ChevronRight, 
+  Phone, 
+  AlertTriangle,
+  User
 } from 'lucide-react';
 import { cleanImageUrl } from '../utils/imageHelper';
 
@@ -241,6 +242,8 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
                 const licensePlate = b.vehicle?.licensePlate || 'TN-01-XX-0000';
                 const customerName = b.customer?.name || 'Customer';
                 const totalRental = b.totalRental ?? 0;
+                const startDateDisplay = b.startDate && b.startDate !== '0' ? b.startDate : '';
+                const endDateDisplay = b.endDate && b.endDate !== '0' ? b.endDate : '';
 
                 return (
                   <div
@@ -264,7 +267,7 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
                           {bookingCode.slice(-4)}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className={`font-mono text-xs font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{bookingCode}</span>
                             <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
                               b.status === 'confirmed' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
@@ -277,8 +280,18 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
                                b.status === 'completed' ? 'Completed' : 'Cancelled'}
                             </span>
                           </div>
+                          
+                          {/* Car Details */}
                           <div className={`text-xs font-semibold mt-0.5 ${theme === 'light' ? 'text-slate-800' : 'text-neutral-200'}`}>
                             {vehicleMake} {vehicleModel} &middot; <span className={`font-mono ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>{licensePlate}</span>
+                          </div>
+
+                          {/* Renter Details Display */}
+                          <div className={`text-[11px] flex items-center gap-1.5 mt-1 font-medium ${
+                            theme === 'light' ? 'text-slate-600' : 'text-neutral-300'
+                          }`}>
+                            <User className="h-3 w-3 text-emerald-500 shrink-0" />
+                            <span>Renter: <strong className={theme === 'light' ? 'text-slate-900' : 'text-emerald-400'}>{customerName}</strong></span>
                           </div>
                         </div>
                       </div>
@@ -294,7 +307,10 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
                     }`}>
                       <div className="flex items-center gap-1.5">
                         <Calendar className="h-3 w-3 text-emerald-600" />
-                        <span>{b.startDate} ({b.pickupTime}) &rarr; {b.endDate}</span>
+                        <span>
+                          {startDateDisplay ? `${startDateDisplay}${b.pickupTime ? ` (${b.pickupTime})` : ''}` : 'Scheduled'} 
+                          {endDateDisplay ? ` → ${endDateDisplay}` : ''}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1 text-emerald-600 font-medium">
                         <span>Details</span>
@@ -328,10 +344,10 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
                       </span>
                     </div>
                     <h3 className={`text-lg font-extrabold mt-1 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
-                      {activeBooking.vehicle?.make} {activeBooking.vehicle?.model}
+                      {activeBooking.vehicle?.make || 'Car'} {activeBooking.vehicle?.model || ''}
                     </h3>
                     <p className={`text-xs ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
-                      Plate: <strong className={`font-mono ${theme === 'light' ? 'text-slate-800' : 'text-neutral-200'}`}>{activeBooking.vehicle?.licensePlate}</strong> &middot; Category: {activeBooking.vehicle?.category?.toUpperCase()}
+                      Plate: <strong className={`font-mono ${theme === 'light' ? 'text-slate-800' : 'text-neutral-200'}`}>{activeBooking.vehicle?.licensePlate || 'N/A'}</strong> &middot; Category: {(activeBooking.vehicle?.category || 'Standard').toUpperCase()}
                     </p>
                   </div>
 
