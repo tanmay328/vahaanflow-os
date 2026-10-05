@@ -5,7 +5,7 @@ export type VehicleStatus =
   | 'maintenance' 
   | 'blocked';
 
-export type VehicleCategory = 'SUV' | 'MPV' | 'Sedan' | 'Compact EV' | 'Off-Roader' | 'Luxury Van';
+export type VehicleCategory = 'SUV' | 'MPV' | 'Sedan' | 'Compact EV' | 'Off-Roader' | 'Luxury Van' | 'Convertible' | 'Luxury EV SUV' | '4x4 Pickup' | 'Luxury MPV';
 
 export type FuelType = 'Electric' | 'Diesel' | 'Petrol' | 'Strong Hybrid';
 
@@ -62,6 +62,7 @@ export interface Vehicle {
   odometer: number; // in km
   fuelOrBatteryPct: number; // 0-100%
   image: string;
+  gallery?: string[];
   
   inspectionPhotos?: {
     front?: string;

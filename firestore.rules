@@ -43,6 +43,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Password resets tokens
+    match /passwordResets/{resetId} {
+      allow read, write: if true;
+    }
+
     // Test connection endpoint
     match /test/{docId} {
       allow read, write: if true;

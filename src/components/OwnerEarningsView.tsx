@@ -16,6 +16,7 @@ interface OwnerEarningsViewProps {
   ownerBookings: Booking[];
   ownerPayouts: PayoutRecord[];
   onReportDispute: (title: string, description: string, bookingId?: string) => void;
+  theme?: 'dark' | 'light';
 }
 
 export const OwnerEarningsView: React.FC<OwnerEarningsViewProps> = ({
@@ -23,6 +24,7 @@ export const OwnerEarningsView: React.FC<OwnerEarningsViewProps> = ({
   ownerBookings,
   ownerPayouts,
   onReportDispute,
+  theme = 'dark',
 }) => {
   const [disputeModalOpen, setDisputeModalOpen] = useState<boolean>(false);
   const [disputeTitle, setDisputeTitle] = useState<string>('');
@@ -74,10 +76,12 @@ export const OwnerEarningsView: React.FC<OwnerEarningsViewProps> = ({
     <div className="space-y-6">
       
       {/* Header & Statement Download */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 ${
+        theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
+      }`}>
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">My Earnings & Bank Payouts</h2>
-          <p className="text-xs text-neutral-400 mt-0.5">
+          <h2 className={`text-xl font-extrabold tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>My Earnings & Bank Payouts</h2>
+          <p className={`text-xs mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
             Your earnings from your cars, platform fee deducted, and bank/UPI payout history.
           </p>
         </div>
@@ -85,15 +89,19 @@ export const OwnerEarningsView: React.FC<OwnerEarningsViewProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDisputeModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-200 hover:bg-neutral-700 transition-colors"
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+              theme === 'light'
+                ? 'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200'
+                : 'border-neutral-700 bg-neutral-800 text-neutral-200 hover:bg-neutral-700'
+            }`}
           >
-            <LifeBuoy className="h-3.5 w-3.5 text-amber-400" />
+            <LifeBuoy className="h-3.5 w-3.5 text-amber-500" />
             <span>Report an Issue</span>
           </button>
 
           <button
             onClick={handleDownloadStatement}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 transition-colors shadow-sm whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm whitespace-nowrap"
           >
             <Download className="h-3.5 w-3.5" />
             <span>Download Statement (Excel/CSV)</span>
@@ -103,86 +111,100 @@ export const OwnerEarningsView: React.FC<OwnerEarningsViewProps> = ({
 
       {/* Financial KPIs Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/60 space-y-1">
-          <div className="flex items-center justify-between text-neutral-400 text-xs">
+        <div className={`p-4 rounded-xl border space-y-1 ${
+          theme === 'light' ? 'bg-white border-slate-200 text-slate-900 shadow-sm' : 'bg-neutral-900/60 border-neutral-800 text-neutral-100'
+        }`}>
+          <div className={`flex items-center justify-between text-xs ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
             <span>Total Booking Amount</span>
-            <DollarSign className="h-4 w-4 text-emerald-400" />
+            <DollarSign className="h-4 w-4 text-emerald-600" />
           </div>
-          <div className="text-2xl font-bold font-mono text-white">
-            ₹{totalGrossRental.toLocaleString()}
+          <div className={`text-2xl font-bold font-mono ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+            ₹{(totalGrossRental || 0).toLocaleString()}
           </div>
-          <span className="text-[10px] text-neutral-500 block">Total paid by customers for your cars</span>
+          <span className={`text-[10px] block ${theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}`}>Total paid by customers for your cars</span>
         </div>
 
-        <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/60 space-y-1">
-          <div className="flex items-center justify-between text-neutral-400 text-xs">
+        <div className={`p-4 rounded-xl border space-y-1 ${
+          theme === 'light' ? 'bg-white border-slate-200 text-slate-900 shadow-sm' : 'bg-neutral-900/60 border-neutral-800 text-neutral-100'
+        }`}>
+          <div className={`flex items-center justify-between text-xs ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
             <span>Platform Fee (15%)</span>
-            <TrendingUp className="h-4 w-4 text-neutral-400" />
+            <TrendingUp className="h-4 w-4 text-slate-400" />
           </div>
-          <div className="text-2xl font-bold font-mono text-neutral-300">
-            -₹{totalCommissionDeducted.toLocaleString()}
+          <div className={`text-2xl font-bold font-mono ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>
+            -₹{(totalCommissionDeducted || 0).toLocaleString()}
           </div>
-          <span className="text-[10px] text-neutral-500 block">For app maintenance and customer support</span>
+          <span className={`text-[10px] block ${theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}`}>For app maintenance and customer support</span>
         </div>
 
-        <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-1">
-          <div className="flex items-center justify-between text-emerald-400 text-xs font-semibold">
+        <div className={`p-4 rounded-xl border space-y-1 ${
+          theme === 'light' ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900 shadow-sm' : 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
+        }`}>
+          <div className="flex items-center justify-between text-emerald-700 text-xs font-semibold">
             <span>My Net Earnings (85%)</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </div>
-          <div className="text-2xl font-extrabold font-mono text-emerald-400">
-            ₹{totalNetEarnings.toLocaleString()}
+          <div className="text-2xl font-extrabold font-mono text-emerald-700">
+            ₹{(totalNetEarnings || 0).toLocaleString()}
           </div>
-          <span className="text-[10px] text-emerald-500/70 block">Your net profit</span>
+          <span className="text-[10px] text-emerald-700/80 block font-medium">Your net profit</span>
         </div>
 
-        <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-1">
-          <div className="flex items-center justify-between text-amber-400 text-xs font-semibold">
+        <div className={`p-4 rounded-xl border space-y-1 ${
+          theme === 'light' ? 'bg-amber-50/80 border-amber-200 text-amber-900 shadow-sm' : 'bg-amber-500/5 border-amber-500/20 text-amber-400'
+        }`}>
+          <div className="flex items-center justify-between text-amber-700 text-xs font-semibold">
             <span>Pending Payout</span>
-            <Clock className="h-4 w-4 text-amber-400" />
+            <Clock className="h-4 w-4 text-amber-600" />
           </div>
-          <div className="text-2xl font-bold font-mono text-amber-400">
-            ₹{pendingPayoutBalance.toLocaleString()}
+          <div className="text-2xl font-bold font-mono text-amber-700">
+            ₹{(pendingPayoutBalance || 0).toLocaleString()}
           </div>
-          <span className="text-[10px] text-neutral-500 block">
-            Already received: ₹{totalPaidOut.toLocaleString()}
+          <span className={`text-[10px] block ${theme === 'light' ? 'text-amber-800/80' : 'text-neutral-500'}`}>
+            Already received: ₹{(totalPaidOut || 0).toLocaleString()}
           </span>
         </div>
       </div>
 
       {/* Payout History Table */}
-      <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 overflow-hidden space-y-3 p-4">
+      <div className={`rounded-xl border overflow-hidden space-y-3 p-4 ${
+        theme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-neutral-900/40 border-neutral-800'
+      }`}>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <FileText className="h-4 w-4 text-emerald-400" />
+          <h3 className={`text-sm font-extrabold flex items-center gap-2 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+            <FileText className="h-4 w-4 text-emerald-600" />
             <span>Bank & UPI Payment History</span>
           </h3>
-          <span className="text-xs text-neutral-400 font-mono">
+          <span className={`text-xs font-mono ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
             Linked UPI: {currentUser.ownerDetails?.upiId || 'suresh.patel@okaxis'}
           </span>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-neutral-800">
+        <div className={`overflow-x-auto rounded-lg border ${theme === 'light' ? 'border-slate-200' : 'border-neutral-800'}`}>
           <table className="w-full text-left text-xs">
-            <thead className="bg-neutral-950 text-neutral-400 font-semibold border-b border-neutral-800">
+            <thead className={`font-semibold border-b ${
+              theme === 'light' ? 'bg-slate-50 text-slate-700 border-slate-200' : 'bg-neutral-950 text-neutral-400 border-neutral-800'
+            }`}>
               <tr>
                 <th className="py-2.5 px-3">Payment ID</th>
                 <th className="py-2.5 px-3">Car Plate</th>
                 <th className="py-2.5 px-3">Total Rent</th>
                 <th className="py-2.5 px-3">Platform Fee (15%)</th>
-                <th className="py-2.5 px-3 font-bold text-white">Your Share</th>
+                <th className={`py-2.5 px-3 font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Your Share</th>
                 <th className="py-2.5 px-3">Status</th>
                 <th className="py-2.5 px-3">Bank Reference / Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-800 font-mono text-[11px]">
+            <tbody className={`divide-y font-mono text-[11px] ${
+              theme === 'light' ? 'divide-slate-100' : 'divide-neutral-800'
+            }`}>
               {ownerPayouts.map(p => (
                 <tr key={p.id} className="hover:bg-neutral-800/40">
                   <td className="py-2.5 px-3 text-neutral-300 font-semibold">{p.id}</td>
                   <td className="py-2.5 px-3 text-white font-sans">{p.vehiclePlate}</td>
-                  <td className="py-2.5 px-3 text-neutral-400">₹{p.grossAmount.toLocaleString()}</td>
-                  <td className="py-2.5 px-3 text-red-400">-₹{p.platformCommission.toLocaleString()}</td>
-                  <td className="py-2.5 px-3 text-emerald-400 font-bold text-xs">₹{p.netPayout.toLocaleString()}</td>
+                  <td className="py-2.5 px-3 text-neutral-400">₹{(p.grossAmount || 0).toLocaleString()}</td>
+                  <td className="py-2.5 px-3 text-red-400">-₹{(p.platformCommission || 0).toLocaleString()}</td>
+                  <td className="py-2.5 px-3 text-emerald-400 font-bold text-xs">₹{(p.netPayout || 0).toLocaleString()}</td>
                   <td className="py-2.5 px-3">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
                       p.status === 'paid' 

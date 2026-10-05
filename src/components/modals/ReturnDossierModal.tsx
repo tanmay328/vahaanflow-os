@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Booking, Vehicle } from '../../types/rental';
-import { Printer, X } from 'lucide-react';
+import { Download, X, Check } from 'lucide-react';
+import { downloadReturnDossierPdf } from '../../utils/pdfGenerator';
 
 interface ReturnDossierModalProps {
   booking: Booking;
   vehicle?: Vehicle;
   onClose: () => void;
-  onPrintAgreement: () => void;
+  onPrintAgreement?: () => void;
 }
 
 export const ReturnDossierModal: React.FC<ReturnDossierModalProps> = ({
@@ -15,11 +16,18 @@ export const ReturnDossierModal: React.FC<ReturnDossierModalProps> = ({
   onClose,
   onPrintAgreement,
 }) => {
+  const [isDownloaded, setIsDownloaded] = useState<boolean>(false);
   const checkOut = booking.dispatchCheckOut;
   const checkIn = booking.returnCheckIn;
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPdf = () => {
+    try {
+      downloadReturnDossierPdf(booking);
+      setIsDownloaded(true);
+      setTimeout(() => setIsDownloaded(false), 3000);
+    } catch (e) {
+      console.warn('PDF download error:', e);
+    }
   };
 
   const odoStart = checkOut?.startOdometer || 0;
@@ -28,10 +36,10 @@ export const ReturnDossierModal: React.FC<ReturnDossierModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/80 p-4 backdrop-blur-sm overflow-y-auto">
-      <div className="my-8 w-full max-w-2xl rounded-xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl space-y-5 print:border-none print:bg-white print:p-0 print:text-black">
+      <div className="my-8 w-full max-w-2xl rounded-xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl space-y-5">
         
         {/* Top Action Bar */}
-        <div className="flex items-center justify-between border-b border-neutral-800 pb-3 print:hidden">
+        <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded">
               CAR RETURN BILL & DEPOSIT REFUND
@@ -42,11 +50,21 @@ export const ReturnDossierModal: React.FC<ReturnDossierModalProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded bg-neutral-800 text-neutral-200 hover:bg-neutral-700 transition-colors"
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 transition-colors shadow-sm"
+              title="Download official PDF document"
             >
-              <Printer className="h-3.5 w-3.5" />
-              <span>Print Return Bill</span>
+              {isDownloaded ? (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  <span>Downloaded!</span>
+                </>
+              ) : (
+                <>
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Download PDF</span>
+                </>
+              )}
             </button>
             <button
               onClick={onClose}

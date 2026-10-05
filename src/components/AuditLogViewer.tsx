@@ -9,9 +9,10 @@ import {
 interface AuditLogViewerProps {
   logs: AuditRecord[];
   vehicles: Vehicle[];
+  theme?: 'dark' | 'light';
 }
 
-export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs }) => {
+export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, theme = 'dark' }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -54,23 +55,29 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs }) => {
     <div className="space-y-6">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 ${
+        theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
+      }`}>
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white tracking-tight">Activity History (Read-only)</h2>
-            <span className="flex items-center gap-1 font-mono text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+            <h2 className={`text-xl font-extrabold tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Activity History (Read-only)</h2>
+            <span className="flex items-center gap-1 font-mono text-[10px] text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
               <Lock className="h-3 w-3" />
               <span>CANNOT BE CHANGED</span>
             </span>
           </div>
-          <p className="text-xs text-neutral-400 mt-0.5">
+          <p className={`text-xs mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
             Permanent record of car handovers, returns, deposit refunds, fee waivers, and owner payouts.
           </p>
         </div>
 
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-200 hover:bg-neutral-700 transition-colors self-start sm:self-auto"
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors self-start sm:self-auto ${
+            theme === 'light'
+              ? 'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200'
+              : 'border-neutral-700 bg-neutral-800 text-neutral-200 hover:bg-neutral-700'
+          }`}
         >
           <Download className="h-3.5 w-3.5" />
           <span>Download History (CSV)</span>
@@ -80,13 +87,17 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs }) => {
       {/* Filter and Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500" />
+          <Search className={`absolute left-3 top-2.5 h-4 w-4 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`} />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search activity, person name, car plate, or booking..."
-            className="w-full rounded-lg border border-neutral-800 bg-neutral-900/80 pl-9 pr-3 py-2 text-xs text-white placeholder-neutral-500 focus:border-emerald-500 focus:outline-none"
+            className={`w-full rounded-lg border pl-9 pr-3 py-2 text-xs transition-colors focus:outline-none ${
+              theme === 'light'
+                ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
+                : 'bg-neutral-900/80 border-neutral-800 text-white placeholder-neutral-500 focus:border-emerald-500'
+            }`}
           />
         </div>
 
@@ -94,7 +105,11 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs }) => {
           <select
             value={selectedCategory}
             onChange={e => setSelectedCategory(e.target.value)}
-            className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+            className={`rounded-lg border px-3 py-2 text-xs focus:outline-none ${
+              theme === 'light'
+                ? 'bg-white border-slate-300 text-slate-900 shadow-sm'
+                : 'bg-neutral-900 border-neutral-800 text-white'
+            }`}
           >
             <option value="all">All Activities</option>
             <option value="CHECK_OUT">Car Handover</option>
@@ -110,7 +125,11 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs }) => {
           <select
             value={selectedSeverity}
             onChange={e => setSelectedSeverity(e.target.value)}
-            className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+            className={`rounded-lg border px-3 py-2 text-xs focus:outline-none ${
+              theme === 'light'
+                ? 'bg-white border-slate-300 text-slate-900 shadow-sm'
+                : 'bg-neutral-900 border-neutral-800 text-white'
+            }`}
           >
             <option value="all">All Priority Levels</option>
             <option value="info">Normal</option>
@@ -122,9 +141,13 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs }) => {
       </div>
 
       {/* Audit Log Table */}
-      <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 overflow-hidden">
+      <div className={`rounded-xl border overflow-hidden ${
+        theme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-neutral-900/40 border-neutral-800'
+      }`}>
         <table className="w-full text-left text-xs">
-          <thead className="bg-neutral-950 text-neutral-400 font-semibold border-b border-neutral-800">
+          <thead className={`font-semibold border-b ${
+            theme === 'light' ? 'bg-slate-50 text-slate-700 border-slate-200' : 'bg-neutral-950 text-neutral-400 border-neutral-800'
+          }`}>
             <tr>
               <th className="py-2.5 px-3">Date & Time</th>
               <th className="py-2.5 px-3">Type</th>
@@ -134,7 +157,9 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs }) => {
               <th className="py-2.5 px-3">Level</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-neutral-800/80 font-mono text-[11px]">
+          <tbody className={`divide-y font-mono text-[11px] ${
+            theme === 'light' ? 'divide-slate-100' : 'divide-neutral-800/80'
+          }`}>
             {filteredLogs.map(log => {
               const isExpanded = expandedLogId === log.id;
 
@@ -142,33 +167,37 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs }) => {
                 <React.Fragment key={log.id}>
                   <tr 
                     onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                    className="hover:bg-neutral-800/40 cursor-pointer transition-colors"
+                    className={`cursor-pointer transition-colors ${
+                      theme === 'light' ? 'hover:bg-slate-50' : 'hover:bg-neutral-800/40'
+                    }`}
                   >
-                    <td className="py-3 px-3 text-neutral-400 whitespace-nowrap">
+                    <td className={`py-3 px-3 whitespace-nowrap ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
                     <td className="py-3 px-3">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-neutral-800 text-neutral-200 border border-neutral-700 uppercase">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border uppercase ${
+                        theme === 'light' ? 'bg-slate-100 text-slate-800 border-slate-200' : 'bg-neutral-800 text-neutral-200 border-neutral-700'
+                      }`}>
                         {log.category.replace('_', ' ')}
                       </span>
                     </td>
                     <td className="py-3 px-3 font-sans max-w-md">
-                      <div className="font-semibold text-white">{log.action}</div>
-                      <div className="text-[11px] text-neutral-400 truncate mt-0.5">{log.summary}</div>
+                      <div className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{log.action}</div>
+                      <div className={`text-[11px] mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>{log.summary}</div>
                     </td>
-                    <td className="py-3 px-3 text-neutral-300 font-sans">
+                    <td className={`py-3 px-3 font-sans ${theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}`}>
                       <div>{log.actor.name}</div>
-                      <div className="text-[10px] text-neutral-500 font-mono capitalize">{log.actor.role}</div>
+                      <div className={`text-[10px] font-mono capitalize ${theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}`}>{log.actor.role}</div>
                     </td>
-                    <td className="py-3 px-3 text-emerald-400">
+                    <td className={`py-3 px-3 font-bold ${theme === 'light' ? 'text-emerald-700' : 'text-emerald-400'}`}>
                       {log.vehiclePlate || '—'}
                     </td>
                     <td className="py-3 px-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-semibold ${
-                        log.severity === 'critical' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
-                        log.severity === 'warning' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                        log.severity === 'notice' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                        'bg-neutral-800 text-neutral-400'
+                        log.severity === 'critical' ? 'bg-red-500/10 text-red-500 border border-red-500/20' :
+                        log.severity === 'warning' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
+                        log.severity === 'notice' ? 'bg-blue-500/10 text-blue-600 border border-blue-500/20' :
+                        (theme === 'light' ? 'bg-slate-100 text-slate-500' : 'bg-neutral-800 text-neutral-400')
                       }`}>
                         {log.severity}
                       </span>
@@ -176,16 +205,16 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs }) => {
                   </tr>
 
                   {isExpanded && log.changes && (
-                    <tr className="bg-neutral-950/80">
+                    <tr className={theme === 'light' ? 'bg-slate-50/50' : 'bg-neutral-950/80'}>
                       <td colSpan={6} className="py-3 px-6">
-                        <div className="space-y-1 font-mono text-[10px] text-neutral-400">
-                          <strong className="text-white block font-sans">Field Changes:</strong>
+                        <div className={`space-y-1 font-mono text-[10px] ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
+                          <strong className={`block font-sans ${theme === 'light' ? 'text-slate-800 font-extrabold' : 'text-white'}`}>Field Changes:</strong>
                           {log.changes.map((c, i) => (
                             <div key={i} className="flex gap-2">
-                              <span className="text-emerald-400">{c.field}:</span>
-                              <span className="text-red-400 line-through">{String(c.before)}</span>
+                              <span className="text-emerald-600 font-bold">{c.field}:</span>
+                              <span className="text-red-500 line-through">{String(c.before)}</span>
                               <span>&rarr;</span>
-                              <span className="text-emerald-300">{String(c.after)}</span>
+                              <span className="text-emerald-600 font-bold">{String(c.after)}</span>
                             </div>
                           ))}
                         </div>

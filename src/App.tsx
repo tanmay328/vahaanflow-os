@@ -13,6 +13,7 @@ import {
 import { UserProfile } from './types/auth';
 import { RentalStorageService } from './services/rentalStorage';
 import { AuthService } from './services/authService';
+import { EmailService } from './services/emailService';
 import { Navbar } from './components/Navbar';
 import { FleetOverview } from './components/FleetOverview';
 import { BookingManager } from './components/BookingManager';
@@ -29,6 +30,7 @@ import { CheckInModal } from './components/modals/CheckInModal';
 import { NewBookingModal } from './components/modals/NewBookingModal';
 import { RentalAgreementModal } from './components/modals/RentalAgreementModal';
 import { ReturnDossierModal } from './components/modals/ReturnDossierModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 import { CheckCircle2, AlertCircle, Info, Lock } from 'lucide-react';
 
@@ -48,6 +50,37 @@ export default function App() {
   const [payouts, setPayouts] = useState<PayoutRecord[]>(() => RentalStorageService.getPayouts());
   const [disputes, setDisputes] = useState<DisputeRecord[]>(() => RentalStorageService.getDisputes());
   const [settings, setSettings] = useState<PlatformSettings>(() => RentalStorageService.getSettings());
+
+  // Light / Dark Theme State (persisted in localStorage)
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('vahaanflow_theme') as 'dark' | 'light') || 'dark';
+  });
+
+  useEffect(() => {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+      document.body.classList.add('bg-slate-50', 'text-slate-900');
+      document.body.classList.remove('bg-neutral-950', 'text-neutral-100');
+      document.body.style.backgroundColor = '#f8fafc';
+      document.body.style.color = '#0f172a';
+    } else {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+      document.body.classList.add('bg-neutral-950', 'text-neutral-100');
+      document.body.classList.remove('bg-slate-50', 'text-slate-900');
+      document.body.style.backgroundColor = '#0a0a0a';
+      document.body.style.color = '#f5f5f5';
+    }
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('vahaanflow_theme', next);
+      return next;
+    });
+  };
 
   // Demo Pulse: DEFAULT OFF as explicitly requested (no background fastag/telemetry spam)
   const [isDemoPulseActive, setIsDemoPulseActive] = useState<boolean>(false);
@@ -136,6 +169,13 @@ export default function App() {
   };
 
   // VEHICLE OPERATIONS
+  const handleDeleteUser = async (userId: string) => {
+    const target = allUsers.find(u => u.id === userId);
+    await AuthService.deleteUser(userId);
+    setAllUsers(prev => prev.filter(u => u.id !== userId));
+    showToast('User Profile Deleted', `Account for ${target?.name || 'User'} permanently deleted.`, 'info');
+  };
+
   const handleSaveVehicle = async (vehicle: Vehicle) => {
     await RentalStorageService.saveVehicle(vehicle);
     await RentalStorageService.logAudit({
@@ -150,6 +190,18 @@ export default function App() {
       vehiclePlate: vehicle.licensePlate,
       severity: 'info',
     });
+
+    // Notify Admin (tanmayrajaura28@gmail.com) for owner car additions/updates
+    if (currentUser?.role === 'vehicle_owner') {
+      EmailService.notifyAdmin({
+        eventTitle: editingVehicleTarget ? 'Car Details Updated by Owner' : 'New Car Submitted by Owner for Approval',
+        actorName: currentUser.name,
+        actorRole: 'Car Owner',
+        actorEmail: currentUser.email,
+        summaryText: `Owner ${currentUser.name} (${currentUser.email}) ${editingVehicleTarget ? 'updated' : 'submitted new car'} ${vehicle.make} ${vehicle.model} (${vehicle.licensePlate}). Daily Rate: ₹${vehicle.dailyRate || vehicle.suggestedDailyRate}. Approval Status: ${vehicle.approvalStatus}.`,
+      }).catch(console.warn);
+    }
+
     setEditingVehicleTarget(null);
     showToast('Vehicle Saved', `${vehicle.make} ${vehicle.model} saved to fleet.`, 'success');
   };
@@ -243,13 +295,17 @@ export default function App() {
 
   // BOOKING OPERATIONS
   const handleCreateBooking = async (newBooking: Booking) => {
-    await RentalStorageService.saveBooking(newBooking);
+    // 1. Immediately update React state so the UI updates with zero lag
+    setBookings(prev => [newBooking, ...prev.filter(b => b.id !== newBooking.id)]);
 
-    // Update vehicle status to booked
     const targetVeh = vehicles.find(v => v.id === newBooking.vehicleId);
     if (targetVeh) {
-      await RentalStorageService.saveVehicle({ ...targetVeh, status: 'booked' });
+      const updatedVeh = { ...targetVeh, status: 'booked' as VehicleStatus };
+      setVehicles(prev => prev.map(v => v.id === updatedVeh.id ? updatedVeh : v));
+      await RentalStorageService.saveVehicle(updatedVeh);
     }
+
+    await RentalStorageService.saveBooking(newBooking);
 
     // Create pending payout record for the vehicle owner
     const newPayout: PayoutRecord = {
@@ -265,6 +321,7 @@ export default function App() {
       status: 'pending',
       createdAt: new Date().toISOString(),
     };
+    setPayouts(prev => [newPayout, ...prev]);
     await RentalStorageService.savePayout(newPayout);
 
     await RentalStorageService.logAudit({
@@ -281,7 +338,18 @@ export default function App() {
       severity: 'info',
     });
 
-    showToast('Reservation Created', `Booking ${newBooking.bookingCode} recorded.`, 'success');
+    // Send instant alert email to Admin (tanmayrajaura28@gmail.com)
+    EmailService.notifyAdmin({
+      eventTitle: 'New Car Booking Confirmed by Customer',
+      actorName: newBooking.customer.name,
+      actorRole: 'Customer',
+      actorEmail: newBooking.customer.email,
+      summaryText: `Customer ${newBooking.customer.name} (${newBooking.customer.email}) reserved ${newBooking.vehicle.make} ${newBooking.vehicle.model} (${newBooking.vehicle.licensePlate}) from ${newBooking.startDate} to ${newBooking.endDate}. Total Rent: ₹${newBooking.totalRental}. Booking Code: ${newBooking.bookingCode}.`,
+    }).catch(console.warn);
+
+    // Automatically switch active view to My Trips so the customer sees their new booking details immediately!
+    setActiveTab('bookings');
+    showToast('🎉 Booking Confirmed', `Booking ${newBooking.bookingCode} confirmed! Email confirmation sent.`, 'success');
   };
 
   const handleOwnerApproveBooking = async (bookingId: string) => {
@@ -302,6 +370,15 @@ export default function App() {
       bookingCode: target.bookingCode,
       severity: 'info',
     });
+
+    EmailService.notifyAdmin({
+      eventTitle: 'Booking Request Approved by Car Owner',
+      actorName: currentUser?.name || 'Car Owner',
+      actorRole: 'Car Owner',
+      actorEmail: currentUser?.email || 'N/A',
+      summaryText: `Car Owner ${currentUser?.name} approved reservation ${target.bookingCode} for ${target.vehicle.make} ${target.vehicle.model} (${target.vehicle.licensePlate}).`,
+    }).catch(console.warn);
+
     showToast('Booking Approved', `You approved reservation ${target.bookingCode}.`, 'success');
   };
 
@@ -332,6 +409,15 @@ export default function App() {
       bookingCode: target.bookingCode,
       severity: 'warning',
     });
+
+    EmailService.notifyAdmin({
+      eventTitle: 'Booking Request Declined by Car Owner',
+      actorName: currentUser?.name || 'Car Owner',
+      actorRole: 'Car Owner',
+      actorEmail: currentUser?.email || 'N/A',
+      summaryText: `Car Owner ${currentUser?.name} declined reservation ${target.bookingCode}. Reason: "${reason}".`,
+    }).catch(console.warn);
+
     showToast('Booking Declined', `Reservation cancelled. Reason: ${reason}`, 'info');
   };
 
@@ -587,6 +673,8 @@ export default function App() {
     return (
       <LoginPage 
         onLoginSuccess={handleLoginSuccess}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
     );
   }
@@ -599,7 +687,11 @@ export default function App() {
   const ownerPayoutsList = payouts.filter(p => p.ownerId === currentUser.id);
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans">
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${
+      theme === 'dark' 
+        ? 'bg-neutral-950 text-neutral-100 dark' 
+        : 'bg-slate-50 text-slate-900 light'
+    }`}>
       
       {/* Top Bar */}
       <Navbar
@@ -616,11 +708,13 @@ export default function App() {
           setVehicleFormOpen(true);
         }}
         onLogout={handleLogout}
-        onSwitchUser={handleSwitchUser}
         onToggleNormalUserMode={handleToggleNormalUserMode}
         isDemoPulseActive={isDemoPulseActive}
         setIsDemoPulseActive={setIsDemoPulseActive}
         auditCount={auditLogs.length}
+        onDeleteUser={handleDeleteUser}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* Normal User Mode Banner (Shown to Admin & Owners switching into Customer view) */}
@@ -645,117 +739,126 @@ export default function App() {
 
       {/* Main Workspace */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
-        
-        {/* TAB 1: FLEET OVERVIEW */}
-        {activeTab === 'fleet' && (
-          <FleetOverview
-            vehicles={vehicles}
-            currentUser={currentUser}
-            onSelectVehicle={(veh) => {
-              setEditingVehicleTarget(veh);
-              setVehicleFormOpen(true);
-            }}
-            onStartBookingForVehicle={(veh) => {
-              setPreselectedVehicleForBooking(veh);
-              setNewBookingModalOpen(true);
-            }}
-            onAddNewVehicle={() => {
-              setEditingVehicleTarget(null);
-              setVehicleFormOpen(true);
-            }}
-            onEditVehicle={(veh) => {
-              setEditingVehicleTarget(veh);
-              setVehicleFormOpen(true);
-            }}
-            onDeleteVehicle={handleDeleteVehicle}
-            onUpdateStatus={handleUpdateVehicleStatus}
-            onApproveVehicle={currentUser.role === 'admin' ? handleApproveVehicle : undefined}
-            onRejectVehicle={currentUser.role === 'admin' ? handleRejectVehicle : undefined}
-          />
-        )}
+        <ErrorBoundary fallbackTitle="Could not load this dashboard tab">
+          {/* TAB 1: FLEET OVERVIEW */}
+          {activeTab === 'fleet' && (
+            <FleetOverview
+              vehicles={vehicles}
+              currentUser={currentUser}
+              theme={theme}
+              onSelectVehicle={(veh) => {
+                setEditingVehicleTarget(veh);
+                setVehicleFormOpen(true);
+              }}
+              onStartBookingForVehicle={(veh) => {
+                setPreselectedVehicleForBooking(veh);
+                setNewBookingModalOpen(true);
+              }}
+              onAddNewVehicle={() => {
+                setEditingVehicleTarget(null);
+                setVehicleFormOpen(true);
+              }}
+              onEditVehicle={(veh) => {
+                setEditingVehicleTarget(veh);
+                setVehicleFormOpen(true);
+              }}
+              onDeleteVehicle={handleDeleteVehicle}
+              onUpdateStatus={handleUpdateVehicleStatus}
+              onApproveVehicle={currentUser.role === 'admin' ? handleApproveVehicle : undefined}
+              onRejectVehicle={currentUser.role === 'admin' ? handleRejectVehicle : undefined}
+            />
+          )}
 
-        {/* TAB 2: BOOKINGS */}
-        {activeTab === 'bookings' && (
-          <BookingManager
-            bookings={bookings}
-            currentUser={currentUser}
-            onOpenCheckOut={(b) => setCheckOutBookingTarget(b)}
-            onOpenCheckIn={(b) => setCheckInBookingTarget(b)}
-            onViewAgreement={(b) => setAgreementBookingTarget(b)}
-            onCancelBooking={(bId, r) => {
-              const b = bookings.find(item => item.id === bId);
-              if (b) {
-                RentalStorageService.saveBooking({ ...b, status: 'cancelled' });
-                showToast('Booking Cancelled', `Reservation cancelled. Reason: ${r}`, 'info');
-              }
-            }}
-            onOpenNewBooking={() => setNewBookingModalOpen(true)}
-            onOpenReturnDossier={(b) => setReturnDossierBookingTarget(b)}
-            onOwnerApproveBooking={handleOwnerApproveBooking}
-            onOwnerDeclineBooking={handleOwnerDeclineBooking}
-            onApproveKYC={handleApproveKYC}
-            onRejectKYC={handleRejectKYC}
-            onBlacklistRenter={handleBlacklistRenter}
-            onDisbursePayout={(b) => {
-              const pay = payouts.find(p => p.bookingId === b.id);
-              if (pay) handleExecutePayout(pay.id, `UTR-IMPS-${Math.floor(100000 + Math.random() * 900000)}`);
-            }}
-          />
-        )}
+          {/* TAB 2: BOOKINGS / TRIPS */}
+          {activeTab === 'bookings' && (
+            <BookingManager
+              bookings={bookings}
+              currentUser={currentUser}
+              theme={theme}
+              onOpenCheckOut={(b) => setCheckOutBookingTarget(b)}
+              onOpenCheckIn={(b) => setCheckInBookingTarget(b)}
+              onViewAgreement={(b) => setAgreementBookingTarget(b)}
+              onCancelBooking={(bId, r) => {
+                const b = bookings.find(item => item.id === bId);
+                if (b) {
+                  RentalStorageService.saveBooking({ ...b, status: 'cancelled' });
+                  showToast('Booking Cancelled', `Reservation cancelled. Reason: ${r}`, 'info');
+                }
+              }}
+              onOpenNewBooking={() => {
+                setPreselectedVehicleForBooking(null);
+                setNewBookingModalOpen(true);
+              }}
+              onOpenReturnDossier={(b) => setReturnDossierBookingTarget(b)}
+              onOwnerApproveBooking={handleOwnerApproveBooking}
+              onOwnerDeclineBooking={handleOwnerDeclineBooking}
+              onApproveKYC={handleApproveKYC}
+              onRejectKYC={handleRejectKYC}
+              onBlacklistRenter={handleBlacklistRenter}
+              onDisbursePayout={(b) => {
+                const pay = payouts.find(p => p.bookingId === b.id);
+                if (pay) handleExecutePayout(pay.id, `UTR-IMPS-${Math.floor(100000 + Math.random() * 900000)}`);
+              }}
+            />
+          )}
 
-        {/* TAB 3: OWNER EARNINGS (Vehicle Owner Only) */}
-        {activeTab === 'earnings' && currentUser.role === 'vehicle_owner' && (
-          <OwnerEarningsView
-            currentUser={currentUser}
-            ownerBookings={ownerBookings}
-            ownerPayouts={ownerPayoutsList}
-            onReportDispute={handleReportDispute}
-          />
-        )}
+          {/* TAB 3: OWNER EARNINGS (Vehicle Owner Only) */}
+          {activeTab === 'earnings' && currentUser.role === 'vehicle_owner' && (
+            <OwnerEarningsView
+              currentUser={currentUser}
+              ownerBookings={ownerBookings}
+              ownerPayouts={ownerPayoutsList}
+              onReportDispute={handleReportDispute}
+              theme={theme}
+            />
+          )}
 
-        {/* TAB 4: ADMIN PAYOUTS & DISPUTES (Admin Only) */}
-        {activeTab === 'payouts' && currentUser.role === 'admin' && (
-          <AdminPayoutsDisputes
-            payouts={payouts}
-            disputes={disputes}
-            settings={settings}
-            onExecutePayout={handleExecutePayout}
-            onResolveDispute={handleResolveDispute}
-            onSaveSettings={(s) => {
-              RentalStorageService.saveSettings(s);
-              setSettings(s);
-              showToast('Settings Saved', 'Platform rules and tax rates updated.', 'success');
-            }}
-          />
-        )}
+          {/* TAB 4: ADMIN PAYOUTS & DISPUTES (Admin Only) */}
+          {activeTab === 'payouts' && currentUser.role === 'admin' && (
+            <AdminPayoutsDisputes
+              payouts={payouts}
+              disputes={disputes}
+              settings={settings}
+              onExecutePayout={handleExecutePayout}
+              onResolveDispute={handleResolveDispute}
+              theme={theme}
+              onSaveSettings={(s) => {
+                RentalStorageService.saveSettings(s);
+                setSettings(s);
+                showToast('Settings Saved', 'Platform rules and tax rates updated.', 'success');
+              }}
+            />
+          )}
 
-        {/* TAB 5: AUDIT LOG (Strictly Read-Only) */}
-        {activeTab === 'audit' && currentUser.role === 'admin' && (
-          <AuditLogViewer
-            logs={auditLogs}
-            vehicles={vehicles}
-          />
-        )}
+          {/* TAB 5: AUDIT LOG (Strictly Read-Only) */}
+          {activeTab === 'audit' && currentUser.role === 'admin' && (
+            <AuditLogViewer
+              logs={auditLogs}
+              vehicles={vehicles}
+              theme={theme}
+            />
+          )}
 
-        {/* TAB 6: MAINTENANCE (Admin Only) */}
-        {activeTab === 'maintenance' && currentUser.role === 'admin' && (
-          <MaintenanceLedger
-            maintenanceLogs={maintenance}
-            vehicles={vehicles}
-            onAddLog={(m) => {
-              RentalStorageService.saveMaintenance(m);
-              showToast('Work Order Created', `Scheduled ${m.serviceType}.`, 'success');
-            }}
-            onCompleteLog={(mId) => {
-              const m = maintenance.find(item => item.id === mId);
-              if (m) {
-                RentalStorageService.saveMaintenance({ ...m, status: 'completed' });
-                showToast('Service Completed', 'Vehicle returned to service ready.', 'success');
-              }
-            }}
-          />
-        )}
-
+          {/* TAB 6: MAINTENANCE (Admin Only) */}
+          {activeTab === 'maintenance' && currentUser.role === 'admin' && (
+            <MaintenanceLedger
+              maintenanceLogs={maintenance}
+              vehicles={vehicles}
+              theme={theme}
+              onAddLog={(m) => {
+                RentalStorageService.saveMaintenance(m);
+                showToast('Work Order Created', `Scheduled ${m.serviceType}.`, 'success');
+              }}
+              onCompleteLog={(mId) => {
+                const m = maintenance.find(item => item.id === mId);
+                if (m) {
+                  RentalStorageService.saveMaintenance({ ...m, status: 'completed' });
+                  showToast('Service Completed', 'Vehicle returned to service ready.', 'success');
+                }
+              }}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Modals Container */}
@@ -770,6 +873,7 @@ export default function App() {
           initialVehicle={editingVehicleTarget}
           allOwners={allOwners}
           onSaveVehicle={handleSaveVehicle}
+          theme={theme}
         />
       )}
 
@@ -778,6 +882,7 @@ export default function App() {
           vehicles={vehicles}
           initialVehicle={preselectedVehicleForBooking}
           currentUser={currentUser}
+          theme={theme}
           onClose={() => {
             setNewBookingModalOpen(false);
             setPreselectedVehicleForBooking(null);
@@ -827,19 +932,23 @@ export default function App() {
 
       {/* Toast Notification */}
       {activeToast && (
-        <div className="fixed bottom-5 right-5 z-50 flex items-start gap-3 rounded-lg border border-neutral-800 bg-neutral-900/95 p-3.5 shadow-2xl backdrop-blur-md max-w-sm transition-all duration-300">
+        <div className={`fixed bottom-5 right-5 z-50 flex items-start gap-3 rounded-xl border p-3.5 shadow-2xl backdrop-blur-md max-w-sm transition-all duration-300 ${
+          theme === 'light'
+            ? 'bg-white border-slate-200 text-slate-900'
+            : 'bg-neutral-900/95 border-neutral-800 text-neutral-100'
+        }`}>
           <div className="mt-0.5 shrink-0">
-            {activeToast.type === 'success' && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
-            {activeToast.type === 'warning' && <AlertCircle className="h-4 w-4 text-amber-400" />}
-            {activeToast.type === 'info' && <Info className="h-4 w-4 text-blue-400" />}
+            {activeToast.type === 'success' && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+            {activeToast.type === 'warning' && <AlertCircle className="h-4 w-4 text-amber-500" />}
+            {activeToast.type === 'info' && <Info className="h-4 w-4 text-blue-500" />}
           </div>
           <div className="flex-1">
-            <div className="text-xs font-semibold text-white">{activeToast.title}</div>
-            <div className="text-[11px] text-neutral-400 mt-0.5 leading-snug">{activeToast.message}</div>
+            <div className={`text-xs font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{activeToast.title}</div>
+            <div className={`text-[11px] mt-0.5 leading-snug ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>{activeToast.message}</div>
           </div>
           <button
             onClick={() => setActiveToast(null)}
-            className="text-neutral-500 hover:text-white text-xs"
+            className={`text-xs ${theme === 'light' ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-500 hover:text-white'}`}
           >
             ✕
           </button>

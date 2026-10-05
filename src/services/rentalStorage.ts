@@ -54,12 +54,27 @@ export class RentalStorageService {
         onSnapshot(collection(db, 'vehicles'), (snap) => {
           if (!snap.empty) {
             const list: Vehicle[] = [];
-            snap.forEach((d) => list.push(d.data() as Vehicle));
+            snap.forEach((d) => {
+              const v = d.data() as Vehicle;
+              if (!v.status) v.status = 'available';
+              if (!v.approvalStatus) v.approvalStatus = 'approved';
+              const seedMatch = INITIAL_VEHICLES.find(iv => iv.id === v.id);
+              if (seedMatch) {
+                v.image = seedMatch.image;
+              } else if (v.image && v.image.startsWith('/src/assets/images/')) {
+                v.image = v.image.replace('/src/assets/images/', '/images/');
+              }
+              list.push(v);
+            });
             localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(list));
             callbacks.onVehicles(list);
           } else {
             // Seed initial
-            INITIAL_VEHICLES.forEach(v => setDoc(doc(db, 'vehicles', v.id), v).catch(console.warn));
+            INITIAL_VEHICLES.forEach(v => {
+              v.status = 'available';
+              v.approvalStatus = 'approved';
+              setDoc(doc(db, 'vehicles', v.id), v).catch(console.warn);
+            });
           }
         }, err => console.warn('Vehicles snapshot error:', err))
       );
@@ -152,9 +167,27 @@ export class RentalStorageService {
   static getVehicles(): Vehicle[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.VEHICLES);
-      return data ? JSON.parse(data) : INITIAL_VEHICLES;
+      const list: Vehicle[] = data ? JSON.parse(data) : [...INITIAL_VEHICLES];
+      const existingIds = new Set(list.map(v => v.id));
+      for (const seed of INITIAL_VEHICLES) {
+        if (!existingIds.has(seed.id)) {
+          list.push(seed);
+        } else {
+          const match = list.find(v => v.id === seed.id);
+          if (match) match.image = seed.image;
+        }
+      }
+      list.forEach(v => {
+        v.status = 'available';
+        v.approvalStatus = 'approved';
+        if (v.image && v.image.startsWith('/src/assets/images/')) {
+          v.image = v.image.replace('/src/assets/images/', '/images/');
+        }
+      });
+      localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(list));
+      return list;
     } catch {
-      return INITIAL_VEHICLES;
+      return INITIAL_VEHICLES.map(v => ({ ...v, status: 'available', approvalStatus: 'approved' }));
     }
   }
 

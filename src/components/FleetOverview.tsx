@@ -14,6 +14,7 @@ import {
   Trash2, 
   Calendar
 } from 'lucide-react';
+import { cleanImageUrl } from '../utils/imageHelper';
 
 interface FleetOverviewProps {
   vehicles: Vehicle[];
@@ -26,6 +27,7 @@ interface FleetOverviewProps {
   onUpdateStatus: (vehicleId: string, newStatus: VehicleStatus, reason: string) => void;
   onApproveVehicle?: (vehicleId: string) => void;
   onRejectVehicle?: (vehicleId: string, reason: string) => void;
+  theme?: 'dark' | 'light';
 }
 
 export const FleetOverview: React.FC<FleetOverviewProps> = ({
@@ -39,6 +41,7 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
   onUpdateStatus,
   onApproveVehicle,
   onRejectVehicle,
+  theme = 'dark',
 }) => {
   const isAdmin = currentUser.role === 'admin';
   const isNormalUserMode = currentUser.activeViewMode === 'renter';
@@ -78,17 +81,21 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
     <div className="space-y-6">
       
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 ${
+        theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
+      }`}>
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white tracking-tight">
+            <h2 className={`text-xl font-extrabold tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
               {isOwner ? 'My Registered Cars' : (isNormalUserMode ? 'Choose a Car to Rent' : 'All Cars on Platform')}
             </h2>
-            <span className="font-mono text-xs text-neutral-400 bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800">
+            <span className={`font-mono text-xs px-2 py-0.5 rounded border ${
+              theme === 'light' ? 'text-slate-700 bg-slate-100 border-slate-200' : 'text-neutral-400 bg-neutral-900 border-neutral-800'
+            }`}>
               {filteredVehicles.length} {filteredVehicles.length === 1 ? 'car' : 'cars'}
             </span>
           </div>
-          <p className="text-xs text-neutral-400 mt-0.5">
+          <p className={`text-xs mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
             {isOwner && 'Manage your cars, block dates for personal use, and set your rental rates.'}
             {isAdmin && 'Admin view: Check fitness/insurance dates, approve new cars, and set car status.'}
             {isNormalUserMode && 'Browse all verified cars available for your trip.'}
@@ -99,7 +106,7 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
         {!isNormalUserMode && (
           <button
             onClick={onAddNewVehicle}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 transition-colors shadow-sm whitespace-nowrap self-start sm:self-auto"
+            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm whitespace-nowrap self-start sm:self-auto"
           >
             <Plus className="h-4 w-4 stroke-[2.5]" />
             <span>{isAdmin ? 'Add New Car' : 'Add My Car for Rent'}</span>
@@ -110,13 +117,17 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
       {/* Filters Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-500" />
+          <Search className={`absolute left-3 top-2.5 h-4 w-4 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`} />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search by car name, number plate, or city..."
-            className="w-full rounded-lg border border-neutral-800 bg-neutral-900/80 pl-9 pr-3 py-2 text-xs text-white placeholder-neutral-500 focus:border-emerald-500 focus:outline-none"
+            className={`w-full rounded-lg border pl-9 pr-3 py-2 text-xs transition-colors focus:outline-none ${
+              theme === 'light'
+                ? 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 shadow-sm focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
+                : 'bg-neutral-900/80 border-neutral-800 text-white placeholder-neutral-500 focus:border-emerald-500'
+            }`}
           />
         </div>
 
@@ -124,7 +135,11 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
           <select
             value={selectedStatus}
             onChange={e => setSelectedStatus(e.target.value)}
-            className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+            className={`rounded-lg border px-3 py-2 text-xs focus:outline-none ${
+              theme === 'light'
+                ? 'bg-white border-slate-300 text-slate-900 shadow-sm focus:border-emerald-600'
+                : 'bg-neutral-900 border-neutral-800 text-white focus:border-emerald-500'
+            }`}
           >
             <option value="all">All Status</option>
             <option value="available">Available (Ready)</option>
@@ -137,7 +152,11 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
           <select
             value={selectedCategory}
             onChange={e => setSelectedCategory(e.target.value)}
-            className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+            className={`rounded-lg border px-3 py-2 text-xs focus:outline-none ${
+              theme === 'light'
+                ? 'bg-white border-slate-300 text-slate-900 shadow-sm focus:border-emerald-600'
+                : 'bg-neutral-900 border-neutral-800 text-white focus:border-emerald-500'
+            }`}
           >
             <option value="all">All Types</option>
             <option value="SUV">SUV</option>
@@ -159,24 +178,29 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
           return (
             <div
               key={vehicle.id}
-              className="group rounded-2xl border border-neutral-800 bg-neutral-900/60 overflow-hidden flex flex-col hover:border-neutral-700 transition-all shadow-lg"
+              className={`group rounded-2xl border overflow-hidden flex flex-col transition-all ${
+                theme === 'light'
+                  ? 'bg-white border-slate-200/90 text-slate-900 shadow-sm hover:shadow-md hover:border-slate-300'
+                  : 'bg-neutral-900/60 border-neutral-800 text-neutral-100 shadow-lg hover:border-neutral-700'
+              }`}
             >
               {/* Image & Status Badge */}
-              <div className="relative h-44 w-full bg-neutral-950 overflow-hidden">
+              <div className={`relative h-44 w-full overflow-hidden ${theme === 'light' ? 'bg-slate-100' : 'bg-neutral-950'}`}>
                 <img
-                  src={vehicle.image}
+                  src={cleanImageUrl(vehicle.image)}
                   alt={`${vehicle.make} ${vehicle.model}`}
+                  referrerPolicy="no-referrer"
                   className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 
                 {/* Status Badges */}
-                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider backdrop-blur-md ${
-                    vehicle.status === 'available' ? 'bg-emerald-500/80 text-white' :
-                    vehicle.status === 'on_trip' ? 'bg-blue-500/80 text-white' :
-                    vehicle.status === 'booked' ? 'bg-amber-500/80 text-white' :
-                    vehicle.status === 'maintenance' ? 'bg-orange-500/80 text-white' :
-                    'bg-red-500/80 text-white'
+                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm ${
+                    vehicle.status === 'available' ? 'bg-emerald-600 text-white' :
+                    vehicle.status === 'on_trip' ? 'bg-blue-600 text-white' :
+                    vehicle.status === 'booked' ? 'bg-amber-600 text-white' :
+                    vehicle.status === 'maintenance' ? 'bg-orange-600 text-white' :
+                    'bg-rose-600 text-white'
                   }`}>
                     {vehicle.status === 'available' ? 'Available' :
                      vehicle.status === 'on_trip' ? 'On Trip' :
@@ -185,19 +209,23 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                   </span>
 
                   {isPending && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-400 text-neutral-950">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-400 text-neutral-950 shadow-sm">
                       Waiting for Approval
                     </span>
                   )}
                 </div>
 
                 {/* Daily Price Tag */}
-                <div className="absolute bottom-3 right-3 rounded-lg bg-neutral-950/80 backdrop-blur-md px-2.5 py-1 border border-neutral-800 text-right">
-                  <div className="text-xs font-bold text-emerald-400 font-mono">
-                    ₹{vehicle.dailyRate.toLocaleString()} <span className="text-[10px] text-neutral-400 font-normal">/day</span>
+                <div className={`absolute bottom-3 right-3 rounded-xl px-2.5 py-1 text-right shadow-md border ${
+                  theme === 'light'
+                    ? 'bg-white/95 text-slate-900 border-slate-200 backdrop-blur-md'
+                    : 'bg-neutral-950/80 text-emerald-400 border-neutral-800 backdrop-blur-md'
+                }`}>
+                  <div className={`text-xs font-extrabold font-mono ${theme === 'light' ? 'text-emerald-700' : 'text-emerald-400'}`}>
+                    ₹{(vehicle.dailyRate ?? vehicle.suggestedDailyRate ?? 3500).toLocaleString()} <span className={`text-[10px] font-normal ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>/day</span>
                   </div>
-                  <div className="text-[9px] text-neutral-400 font-mono">
-                    {vehicle.kmAllowancePerDay} km free / day
+                  <div className={`text-[9px] font-mono ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
+                    {vehicle.kmAllowancePerDay ?? 300} km free / day
                   </div>
                 </div>
               </div>
@@ -207,14 +235,16 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h3 className="font-bold text-white text-sm">
+                      <h3 className={`font-extrabold text-sm ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                         {vehicle.make} {vehicle.model}
                       </h3>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="font-mono text-[11px] text-neutral-300 bg-neutral-950 px-1.5 py-0.2 rounded border border-neutral-800">
-                          {vehicle.licensePlate}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`font-mono text-[11px] px-1.5 py-0.2 rounded border ${
+                          theme === 'light' ? 'text-slate-800 bg-slate-100 border-slate-200' : 'text-neutral-300 bg-neutral-950 border-neutral-800'
+                        }`}>
+                          {vehicle.licensePlate || 'N/A'}
                         </span>
-                        <span className="text-neutral-400 text-[11px]">
+                        <span className={`text-[11px] ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
                           {vehicle.category} &middot; {vehicle.fuelType}
                         </span>
                       </div>
@@ -223,39 +253,49 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
 
                   {/* Owner Name */}
                   {isAdmin && (
-                    <div className="mt-2.5 pt-2 border-t border-neutral-800/80 flex items-center justify-between text-[11px]">
-                      <span className="text-neutral-500">Car Owner:</span>
-                      <span className="font-medium text-emerald-300 font-sans">
-                        {vehicle.ownerName}
+                    <div className={`mt-2.5 pt-2 border-t flex items-center justify-between text-[11px] ${
+                      theme === 'light' ? 'border-slate-100' : 'border-neutral-800/80'
+                    }`}>
+                      <span className={theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}>Car Owner:</span>
+                      <span className={`font-semibold ${theme === 'light' ? 'text-emerald-700' : 'text-emerald-300'}`}>
+                        {vehicle.ownerName || 'Verified Fleet Owner'}
                       </span>
                     </div>
                   )}
 
                   {/* Location & KM */}
-                  <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-neutral-800/60 text-[11px] text-neutral-400">
+                  <div className={`grid grid-cols-2 gap-2 mt-3 pt-2 border-t text-[11px] ${
+                    theme === 'light' ? 'border-slate-100 text-slate-600' : 'border-neutral-800/60 text-neutral-400'
+                  }`}>
                     <div className="flex items-center gap-1.5 truncate">
-                      <MapPin className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
-                      <span className="truncate">{vehicle.currentLocation.city}</span>
+                      <MapPin className={`h-3.5 w-3.5 shrink-0 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`} />
+                      <span className="truncate">{vehicle.currentLocation?.city || 'Bengaluru'}</span>
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <Gauge className="h-3.5 w-3.5 text-neutral-500 shrink-0" />
-                      <span className="font-mono">{vehicle.odometer.toLocaleString()} km</span>
+                      <Gauge className={`h-3.5 w-3.5 shrink-0 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`} />
+                      <span className="font-mono">{(vehicle.odometer || 0).toLocaleString()} km</span>
                     </div>
                   </div>
 
                   {/* Insurance & PUC Dates (Admin view) */}
                   {isAdmin && (
-                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-neutral-800/60 text-[10px] text-neutral-400">
-                      <span>PUC till: <strong className="text-neutral-300">{vehicle.documents.pucExpiry}</strong></span>
+                    <div className={`flex items-center gap-2 mt-2 pt-2 border-t text-[10px] ${
+                      theme === 'light' ? 'border-slate-100 text-slate-500' : 'border-neutral-800/60 text-neutral-400'
+                    }`}>
+                      <span>PUC till: <strong className={theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}>{vehicle.documents?.pucExpiry || 'N/A'}</strong></span>
                       <span>&middot;</span>
-                      <span>Insurance: <strong className="text-neutral-300">{vehicle.documents.insuranceExpiry}</strong></span>
+                      <span>Insurance: <strong className={theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}>{vehicle.documents?.insuranceExpiry || 'N/A'}</strong></span>
                     </div>
                   )}
 
                   {/* Personal Blocked Dates */}
                   {isPersonalBlocked && (
-                    <div className="mt-2 p-1.5 rounded bg-neutral-950 border border-neutral-800 text-[10px] text-amber-400 flex items-center gap-1.5">
+                    <div className={`mt-2 p-1.5 rounded text-[10px] flex items-center gap-1.5 border ${
+                      theme === 'light'
+                        ? 'bg-amber-50 border-amber-200 text-amber-800'
+                        : 'bg-neutral-950 border-neutral-800 text-amber-400'
+                    }`}>
                       <Calendar className="h-3 w-3 shrink-0" />
                       <span>Blocked for personal use on {vehicle.blockedDates?.join(', ')}</span>
                     </div>
@@ -263,14 +303,16 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                 </div>
 
                 {/* Card Actions */}
-                <div className="pt-2 border-t border-neutral-800 flex items-center justify-between gap-2">
+                <div className={`pt-2.5 border-t flex items-center justify-between gap-2 ${
+                  theme === 'light' ? 'border-slate-100' : 'border-neutral-800'
+                }`}>
                   
                   {/* Customer Mode: Book Now */}
                   {isNormalUserMode ? (
                     <button
                       onClick={() => onStartBookingForVehicle(vehicle)}
                       disabled={vehicle.status !== 'available'}
-                      className="w-full py-2 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold transition-colors disabled:opacity-50"
+                      className="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors disabled:opacity-50 shadow-sm"
                     >
                       {vehicle.status === 'available' ? 'Book This Car' : 'Currently Unavailable'}
                     </button>
@@ -281,7 +323,7 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                         <div className="flex items-center gap-1.5 w-full">
                           <button
                             onClick={() => onApproveVehicle(vehicle.id)}
-                            className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-[11px] transition-colors"
+                            className="flex-1 py-1.5 px-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-colors shadow-sm"
                           >
                             Approve Car
                           </button>
@@ -290,7 +332,7 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                               const r = prompt('Reason for rejecting car:');
                               if (r) onRejectVehicle(vehicle.id, r);
                             }}
-                            className="py-1.5 px-2 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 font-medium text-[11px]"
+                            className="py-1.5 px-2 rounded-lg border border-red-500/40 text-red-600 hover:bg-red-50 font-medium text-[11px]"
                           >
                             Reject
                           </button>
@@ -300,13 +342,18 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                       {/* Standard Controls */}
                       {(!isPending || !isAdmin) && (
                         <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={() => onEditVehicle(vehicle)}
-                              className="p-1.5 text-neutral-400 hover:text-white rounded hover:bg-neutral-800"
-                              title="Edit car details / price"
+                              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                                theme === 'light'
+                                  ? 'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200'
+                                  : 'border-neutral-700 bg-neutral-800 text-neutral-200 hover:text-white hover:bg-neutral-700'
+                              }`}
+                              title="Edit car details, rates, blocked dates, or photos"
                             >
-                              <Edit3 className="h-4 w-4" />
+                              <Edit3 className={`h-3.5 w-3.5 ${theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'}`} />
+                              <span>{isOwner ? 'Manage / Edit Car' : 'Edit'}</span>
                             </button>
 
                             {isAdmin && (
@@ -316,10 +363,14 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                                     onDeleteVehicle(vehicle.id);
                                   }
                                 }}
-                                className="p-1.5 text-red-400 hover:text-red-300 rounded hover:bg-red-500/10"
-                                title="Delete car"
+                                className={`p-1.5 rounded-lg border transition-colors ${
+                                  theme === 'light'
+                                    ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
+                                    : 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20'
+                                }`}
+                                title="Remove car from platform"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5" />
                               </button>
                             )}
                           </div>
@@ -334,7 +385,11 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                                     onUpdateStatus(vehicle.id, e.target.value as VehicleStatus, reason);
                                   }
                                 }}
-                                className="text-[10px] rounded border border-neutral-700 bg-neutral-950 px-2 py-1 text-white focus:outline-none"
+                                className={`text-[10px] font-semibold rounded border px-2 py-1 focus:outline-none ${
+                                  theme === 'light'
+                                    ? 'border-slate-300 bg-white text-slate-800 shadow-sm'
+                                    : 'border-neutral-700 bg-neutral-950 text-white'
+                                }`}
                               >
                                 <option value="available">Set Available</option>
                                 <option value="booked">Set Booked</option>
@@ -343,14 +398,6 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                                 <option value="blocked">Set Blocked</option>
                               </select>
                             )}
-
-                            <button
-                              onClick={() => onStartBookingForVehicle(vehicle)}
-                              disabled={vehicle.status !== 'available'}
-                              className="px-3 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-white font-medium text-[11px] disabled:opacity-40"
-                            >
-                              Book
-                            </button>
                           </div>
                         </div>
                       )}

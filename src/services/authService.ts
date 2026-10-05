@@ -1,3 +1,4 @@
+import { EmailService } from './emailService';
 import { UserProfile, UserRole } from '../types/auth';
 import { auth, db } from './firebase';
 import { 
@@ -12,6 +13,7 @@ import {
   doc, 
   getDoc, 
   setDoc, 
+  deleteDoc,
   collection, 
   getDocs,
   onSnapshot 
@@ -22,20 +24,20 @@ const STORAGE_KEYS = {
   CURRENT_USER: 'vahaanflow_current_user_v3',
 };
 
-// Initial Seed Users: 1 Platform Admin, 2 Vehicle Owners
+// Initial Seed Users: 1 Platform Admin (Tanmay Rajaura), 2 Vehicle Owners
 export const INITIAL_USERS: UserProfile[] = [
   {
-    id: 'usr-admin-01',
-    name: 'Vikram Shinde (Platform Admin)',
-    email: 'admin@vahaanflow.in',
+    id: 'usr-admin-tanmay',
+    name: 'Tanmay Rajaura (Platform Admin)',
+    email: 'tanmayrajaura28@gmail.com',
     password: 'admin123',
     phone: '+91 98200 11223',
     role: 'admin',
     activeViewMode: 'admin',
     createdAt: '2026-08-01T00:00:00.000Z',
     renterDetails: {
-      drivingLicense: 'MH-0120150048192',
-      aadhaarMasked: 'XXXX-XXXX-9901',
+      drivingLicense: 'DL-0120240088192',
+      aadhaarMasked: 'XXXX-XXXX-2828',
       kycStatus: 'verified',
     },
   },
@@ -88,6 +90,78 @@ export const INITIAL_USERS: UserProfile[] = [
     createdAt: '2026-09-01T12:00:00.000Z',
   },
   {
+    id: 'usr-owner-03',
+    name: 'Rajesh Singhania (Luxury Motors)',
+    email: 'rajesh.singhania@luxmotors.in',
+    password: 'owner123',
+    phone: '+91 98110 33490',
+    role: 'vehicle_owner',
+    activeViewMode: 'vehicle_owner',
+    ownerDetails: {
+      upiId: 'rajesh.singhania@icici',
+      bankAccount: 'ICIC000992100481',
+      bankIfsc: 'ICIC0000011',
+      approvalStatus: 'approved',
+      payoutBalance: 58000,
+      totalEarned: 240000,
+      joinedDate: '2026-09-05',
+    },
+    renterDetails: {
+      drivingLicense: 'KA-0120190044192',
+      aadhaarMasked: 'XXXX-XXXX-8812',
+      kycStatus: 'verified',
+    },
+    createdAt: '2026-09-05T10:00:00.000Z',
+  },
+  {
+    id: 'usr-owner-04',
+    name: 'Kavita Reddy (Deccan EV Fleet)',
+    email: 'kavita.reddy@deccanwheels.in',
+    password: 'owner123',
+    phone: '+91 97000 88210',
+    role: 'vehicle_owner',
+    activeViewMode: 'vehicle_owner',
+    ownerDetails: {
+      upiId: 'kavita.reddy@ybl',
+      bankAccount: 'HDFC000448100912',
+      bankIfsc: 'HDFC0000045',
+      approvalStatus: 'approved',
+      payoutBalance: 31000,
+      totalEarned: 115000,
+      joinedDate: '2026-09-12',
+    },
+    renterDetails: {
+      drivingLicense: 'TS-0720200099120',
+      aadhaarMasked: 'XXXX-XXXX-5510',
+      kycStatus: 'verified',
+    },
+    createdAt: '2026-09-12T11:30:00.000Z',
+  },
+  {
+    id: 'usr-owner-05',
+    name: 'Vikramaditya Chauhan (Rajputana Fleet)',
+    email: 'vikramaditya@rajputanafleet.in',
+    password: 'owner123',
+    phone: '+91 98290 55100',
+    role: 'vehicle_owner',
+    activeViewMode: 'vehicle_owner',
+    ownerDetails: {
+      upiId: 'vikramaditya@paytm',
+      bankAccount: 'SBIN000110099881',
+      bankIfsc: 'SBIN0000312',
+      approvalStatus: 'approved',
+      payoutBalance: 46000,
+      totalEarned: 195000,
+      joinedDate: '2026-09-18',
+    },
+    renterDetails: {
+      drivingLicense: 'RJ-1420180022391',
+      aadhaarMasked: 'XXXX-XXXX-9901',
+      kycStatus: 'verified',
+    },
+    createdAt: '2026-09-18T09:00:00.000Z',
+  },
+  {
     id: 'usr-renter-01',
     name: 'Rahul Sharma (Customer)',
     email: 'rahul.sharma@gmail.com',
@@ -105,15 +179,41 @@ export const INITIAL_USERS: UserProfile[] = [
 ];
 
 export class AuthService {
-  // Sync users in real-time from Cloud Firestore
+  // Sync users in real-time from Cloud Firestore and automatically deduplicate identical emails
   static initFirestoreUsersSync(onUsersUpdate?: (users: UserProfile[]) => void): () => void {
     try {
       const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
         if (!snapshot.empty) {
+          const seenEmails = new Set<string>();
           const remoteUsers: UserProfile[] = [];
+
           snapshot.forEach((d) => {
-            remoteUsers.push(d.data() as UserProfile);
+            const userData = d.data() as UserProfile;
+            const normalizedEmail = (userData.email || '').trim().toLowerCase();
+
+            if (normalizedEmail === 'admin@vahaanflow.in') {
+              // Delete old admin account
+              deleteDoc(doc(db, 'users', d.id)).catch(console.warn);
+              return;
+            }
+
+            if (normalizedEmail === 'tanmayrajaura28@gmail.com') {
+              userData.role = 'admin';
+              userData.name = 'Tanmay Rajaura (Platform Admin)';
+              userData.activeViewMode = 'admin';
+            }
+
+            if (normalizedEmail && seenEmails.has(normalizedEmail)) {
+              // Found duplicate account/customer with identical email - delete duplicate document from Firestore
+              deleteDoc(doc(db, 'users', d.id)).catch(console.warn);
+            } else {
+              if (normalizedEmail) {
+                seenEmails.add(normalizedEmail);
+              }
+              remoteUsers.push(userData);
+            }
           });
+
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(remoteUsers));
           if (onUsersUpdate) onUsersUpdate(remoteUsers);
         } else {
@@ -135,28 +235,54 @@ export class AuthService {
   static getUsers(): UserProfile[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.USERS);
-      if (!data) {
-        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(INITIAL_USERS));
-        INITIAL_USERS.forEach((u) => {
-          setDoc(doc(db, 'users', u.id), u).catch(console.warn);
+      let parsed: UserProfile[] = data ? JSON.parse(data) : [...INITIAL_USERS];
+
+      // Remove old admin Vikram Shinde (admin@vahaanflow.in)
+      parsed = parsed.filter(u => u.email.toLowerCase() !== 'admin@vahaanflow.in');
+
+      let tanmayAdmin = parsed.find(u => u.email.toLowerCase() === 'tanmayrajaura28@gmail.com');
+      if (tanmayAdmin) {
+        tanmayAdmin.role = 'admin';
+        tanmayAdmin.name = 'Tanmay Rajaura (Platform Admin)';
+        tanmayAdmin.activeViewMode = 'admin';
+      } else {
+        parsed.unshift({
+          id: 'usr-admin-tanmay',
+          name: 'Tanmay Rajaura (Platform Admin)',
+          email: 'tanmayrajaura28@gmail.com',
+          password: 'admin123',
+          phone: '+91 98200 11223',
+          role: 'admin',
+          activeViewMode: 'admin',
+          createdAt: '2026-08-01T00:00:00.000Z',
+          renterDetails: {
+            drivingLicense: 'DL-0120240088192',
+            aadhaarMasked: 'XXXX-XXXX-2828',
+            kycStatus: 'verified',
+          },
         });
-        return INITIAL_USERS;
       }
-      const parsed: UserProfile[] = JSON.parse(data);
-      let changed = false;
-      const existingEmails = new Set(parsed.map(u => u.email.toLowerCase()));
-      for (const demoUser of INITIAL_USERS) {
-        if (!existingEmails.has(demoUser.email.toLowerCase())) {
-          parsed.push(demoUser);
-          changed = true;
-        }
-      }
-      if (changed) {
-        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(parsed));
-      }
+
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(parsed));
       return parsed;
     } catch {
       return INITIAL_USERS;
+    }
+  }
+
+  static async deleteUser(userId: string): Promise<void> {
+    const users = this.getUsers().filter(u => u.id !== userId);
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+
+    const cur = this.getCurrentUser();
+    if (cur?.id === userId) {
+      this.setCurrentUser(null);
+    }
+
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+    } catch (err) {
+      console.warn('Firestore delete user error:', err);
     }
   }
 
@@ -333,39 +459,124 @@ export class AuthService {
     // Save directly to Firestore users collection linked by uid
     await this.syncUserProfileToFirestore(newUser);
 
+    // Send Welcome Email via Nodemailer (from vahaanflowos)
+    EmailService.sendWelcomeEmail({
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role,
+      phone: newUser.phone,
+      upiId: newUser.ownerDetails?.upiId,
+      drivingLicense: newUser.renterDetails?.drivingLicense,
+    }).catch(err => console.warn('Welcome email dispatch error:', err));
+
     return { success: true, user: newUser };
   }
 
-  // Forgot Password Reset Flow
-  static async requestPasswordReset(email: string): Promise<{ success: boolean; message: string }> {
+  // 1. Send Password Reset Link to Email (User must reset via link only)
+  static async requestPasswordResetLink(email: string): Promise<{ success: boolean; message: string }> {
     const cleanEmail = email.trim().toLowerCase();
-    let fbSuccess = false;
+    const users = this.getUsers();
+    let userExists = !!users.find(u => u.email.toLowerCase() === cleanEmail);
 
-    try {
-      await sendPasswordResetEmail(auth, cleanEmail);
-      fbSuccess = true;
-    } catch (e: any) {
-      console.info('Firebase sendPasswordResetEmail notice:', e.message);
+    if (!userExists) {
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        snap.forEach((d) => {
+          const u = d.data() as UserProfile;
+          if (u.email && u.email.toLowerCase() === cleanEmail) {
+            userExists = true;
+          }
+        });
+      } catch (err) {
+        console.warn('User lookup check:', err);
+      }
     }
 
-    // Also update in Firestore / local store for instant testability
-    const users = this.getUsers();
-    const target = users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (target) {
-      target.password = 'Reset@1234';
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-      await this.syncUserProfileToFirestore(target);
+    if (!userExists) {
       return {
-        success: true,
-        message: fbSuccess 
-          ? `Password reset link dispatched to ${cleanEmail}. In demo mode, temporary password has also been updated to: Reset@1234`
-          : `Password reset successfully! Your temporary password is: Reset@1234. Please sign in and update your security settings.`,
+        success: false,
+        message: `No registered account found with email "${cleanEmail}". Please verify your email or create a new account.`,
+      };
+    }
+
+    // Send secure reset link via Nodemailer (vahaanflowos)
+    const result = await EmailService.sendPasswordResetLink(cleanEmail);
+    if (!result.success) {
+      return {
+        success: false,
+        message: result.error || 'Could not send reset email. Please try again.',
       };
     }
 
     return {
       success: true,
-      message: `If an account exists for ${cleanEmail}, password reset instructions have been sent.`,
+      message: `Password reset link has been dispatched to ${cleanEmail}. Please check your inbox (and spam folder) and open the secure link to set your new customized password.`,
+    };
+  }
+
+  // 2. Complete Password Reset using Secure Token from Email Link
+  static async completePasswordResetFromLink(
+    token: string, 
+    email: string, 
+    newCustomPassword: string
+  ): Promise<{ success: boolean; message: string; user?: UserProfile }> {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Verify token with backend
+    const verification = await EmailService.verifyResetToken(token, cleanEmail);
+    if (!verification.valid) {
+      return {
+        success: false,
+        message: verification.error || 'Invalid or expired password reset link. Please request a new link.',
+      };
+    }
+
+    // Update password in Firestore & local cache
+    const users = this.getUsers();
+    let target = users.find(u => u.email.toLowerCase() === cleanEmail);
+
+    if (!target) {
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        snap.forEach((d) => {
+          const u = d.data() as UserProfile;
+          if (u.email && u.email.toLowerCase() === cleanEmail) {
+            target = u;
+          }
+        });
+      } catch (err) {
+        console.warn('Firestore user lookup error:', err);
+      }
+    }
+
+    if (!target) {
+      return {
+        success: false,
+        message: `Account not found for ${cleanEmail}.`,
+      };
+    }
+
+    // Update password
+    target.password = newCustomPassword;
+    const existingIndex = users.findIndex(u => u.email.toLowerCase() === cleanEmail);
+    if (existingIndex >= 0) {
+      users[existingIndex] = target;
+    } else {
+      users.push(target);
+    }
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    await this.syncUserProfileToFirestore(target);
+
+    // Invalidate token so it cannot be reused
+    await EmailService.invalidateResetToken(token);
+
+    // Send confirmation email
+    await EmailService.sendPasswordUpdatedConfirmation(cleanEmail, target.name).catch(console.warn);
+
+    return {
+      success: true,
+      message: `Your password has been successfully updated with your new customized password!`,
+      user: target,
     };
   }
 

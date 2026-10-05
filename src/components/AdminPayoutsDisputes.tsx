@@ -11,6 +11,7 @@ interface AdminPayoutsDisputesProps {
   onExecutePayout: (payoutId: string, transactionRef: string) => void;
   onResolveDispute: (disputeId: string, resolution: string) => void;
   onSaveSettings: (settings: PlatformSettings) => void;
+  theme?: 'dark' | 'light';
 }
 
 export const AdminPayoutsDisputes: React.FC<AdminPayoutsDisputesProps> = ({
@@ -20,6 +21,7 @@ export const AdminPayoutsDisputes: React.FC<AdminPayoutsDisputesProps> = ({
   onExecutePayout,
   onResolveDispute,
   onSaveSettings,
+  theme = 'dark',
 }) => {
   const [subTab, setSubTab] = useState<'payouts' | 'disputes' | 'settings'>('payouts');
   
@@ -71,36 +73,46 @@ export const AdminPayoutsDisputes: React.FC<AdminPayoutsDisputesProps> = ({
     <div className="space-y-6">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 ${
+        theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
+      }`}>
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Owner Payouts & Complaints</h2>
-          <p className="text-xs text-neutral-400 mt-0.5">
+          <h2 className={`text-xl font-extrabold tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Owner Payouts & Complaints</h2>
+          <p className={`text-xs mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
             Admin desk: Send bank payouts to car owners, solve customer/owner complaints, and set commission rates.
           </p>
         </div>
 
         {/* Sub-tabs */}
-        <div className="flex rounded-lg bg-neutral-900 p-1 border border-neutral-800 text-xs font-semibold">
+        <div className={`flex rounded-xl p-1 border text-xs font-semibold ${
+          theme === 'light' ? 'bg-slate-100 border-slate-200' : 'bg-neutral-900 border-neutral-800'
+        }`}>
           <button
             onClick={() => setSubTab('payouts')}
-            className={`px-3 py-1.5 rounded-md transition-colors ${
-              subTab === 'payouts' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              subTab === 'payouts'
+                ? (theme === 'light' ? 'bg-white text-slate-900 shadow-sm' : 'bg-neutral-800 text-white')
+                : (theme === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-neutral-400 hover:text-white')
             }`}
           >
             Pay Car Owners ({payouts.filter(p => p.status === 'pending').length} pending)
           </button>
           <button
             onClick={() => setSubTab('disputes')}
-            className={`px-3 py-1.5 rounded-md transition-colors ${
-              subTab === 'disputes' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              subTab === 'disputes'
+                ? (theme === 'light' ? 'bg-white text-slate-900 shadow-sm' : 'bg-neutral-800 text-white')
+                : (theme === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-neutral-400 hover:text-white')
             }`}
           >
             Complaints ({openDisputesCount})
           </button>
           <button
             onClick={() => setSubTab('settings')}
-            className={`px-3 py-1.5 rounded-md transition-colors ${
-              subTab === 'settings' ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:text-white'
+            className={`px-3 py-1.5 rounded-lg transition-colors ${
+              subTab === 'settings'
+                ? (theme === 'light' ? 'bg-white text-slate-900 shadow-sm' : 'bg-neutral-800 text-white')
+                : (theme === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-neutral-400 hover:text-white')
             }`}
           >
             Commission & GST Rules
@@ -112,29 +124,39 @@ export const AdminPayoutsDisputes: React.FC<AdminPayoutsDisputesProps> = ({
       {subTab === 'payouts' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/60">
-              <span className="text-neutral-400 text-xs block">Total Money Paid to Car Owners</span>
-              <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">
-                ₹{totalDisbursed.toLocaleString()}
+            <div className={`p-4 rounded-xl border ${
+              theme === 'light' ? 'bg-white border-slate-200 text-slate-900 shadow-sm' : 'bg-neutral-900/60 border-neutral-800 text-neutral-100'
+            }`}>
+              <span className={`text-xs block ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>Total Money Paid to Car Owners</span>
+              <div className="text-2xl font-bold font-mono text-emerald-600 mt-1">
+                ₹{(totalDisbursed || 0).toLocaleString()}
               </div>
             </div>
-            <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
-              <span className="text-amber-400 text-xs block font-semibold">Pending Payouts to Pay</span>
-              <div className="text-2xl font-bold font-mono text-amber-400 mt-1">
-                ₹{pendingDisbursement.toLocaleString()}
+            <div className={`p-4 rounded-xl border ${
+              theme === 'light' ? 'bg-amber-50/80 border-amber-200 text-amber-900 shadow-sm' : 'bg-amber-500/5 border-amber-500/20 text-amber-400'
+            }`}>
+              <span className="text-amber-700 text-xs block font-semibold">Pending Payouts to Pay</span>
+              <div className="text-2xl font-bold font-mono text-amber-700 mt-1">
+                ₹{(pendingDisbursement || 0).toLocaleString()}
               </div>
             </div>
-            <div className="p-4 rounded-xl border border-neutral-800 bg-neutral-900/60">
-              <span className="text-neutral-400 text-xs block">Fee Split</span>
-              <div className="text-2xl font-bold font-mono text-white mt-1">
+            <div className={`p-4 rounded-xl border ${
+              theme === 'light' ? 'bg-white border-slate-200 text-slate-900 shadow-sm' : 'bg-neutral-900/60 border-neutral-800 text-neutral-100'
+            }`}>
+              <span className={`text-xs block ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>Fee Split</span>
+              <div className={`text-2xl font-bold font-mono mt-1 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                 85% Owner / 15% Platform
               </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 overflow-hidden">
+          <div className={`rounded-xl border overflow-hidden ${
+            theme === 'light' ? 'bg-white border-slate-200 shadow-sm' : 'bg-neutral-900/40 border-neutral-800'
+          }`}>
             <table className="w-full text-left text-xs">
-              <thead className="bg-neutral-950 text-neutral-400 font-semibold border-b border-neutral-800">
+              <thead className={`font-semibold border-b ${
+                theme === 'light' ? 'bg-slate-50 text-slate-700 border-slate-200' : 'bg-neutral-950 text-neutral-400 border-neutral-800'
+              }`}>
                 <tr>
                   <th className="py-2.5 px-3">Car Owner</th>
                   <th className="py-2.5 px-3">Car Plate</th>
@@ -153,9 +175,9 @@ export const AdminPayoutsDisputes: React.FC<AdminPayoutsDisputesProps> = ({
                       <div className="text-[10px] text-neutral-500 font-mono">{p.ownerUpiOrBank}</div>
                     </td>
                     <td className="py-2.5 px-3 text-neutral-300">{p.vehiclePlate}</td>
-                    <td className="py-2.5 px-3 text-neutral-400">₹{p.grossAmount.toLocaleString()}</td>
-                    <td className="py-2.5 px-3 text-emerald-400">+₹{p.platformCommission.toLocaleString()}</td>
-                    <td className="py-2.5 px-3 text-white font-bold text-xs">₹{p.netPayout.toLocaleString()}</td>
+                    <td className="py-2.5 px-3 text-neutral-400">₹{(p.grossAmount || 0).toLocaleString()}</td>
+                    <td className="py-2.5 px-3 text-emerald-400">+₹{(p.platformCommission || 0).toLocaleString()}</td>
+                    <td className="py-2.5 px-3 text-white font-bold text-xs">₹{(p.netPayout || 0).toLocaleString()}</td>
                     <td className="py-2.5 px-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
                         p.status === 'paid' 
