@@ -200,26 +200,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Right Action Controls */}
         <div className="flex items-center gap-2.5">
           
-          {/* Normal User View Switcher (Only for Admin & Owners who have dual view modes) */}
-          {!isCustomerOnly && (
-            <button
-              onClick={onToggleNormalUserMode}
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                isNormalUserMode
-                  ? (theme === 'light' 
-                      ? 'border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm' 
-                      : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300')
-                  : (theme === 'light'
-                      ? 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50 shadow-sm'
-                      : 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white')
-              }`}
-              title="Switch between Admin/Owner and Customer view"
-            >
-              <Car className="h-3.5 w-3.5 text-emerald-500" />
-              <span>{isNormalUserMode ? 'Back to Dashboard' : 'Rent a Car'}</span>
-            </button>
-          )}
-
           {/* Action CTA: Add Car or Booking */}
           {(!isNormalUserMode && (isOwner || isAdmin)) ? (
             <button
@@ -312,31 +292,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 </div>
 
-                {/* Normal User Mode Toggle (For Admin & Owner only) */}
-                {!isCustomerOnly && (
-                  <button
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      onToggleNormalUserMode();
-                    }}
-                    className="w-full flex items-center justify-between p-2 rounded-lg text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Car className="h-3.5 w-3.5" />
-                      <span>{isNormalUserMode ? 'Back to Admin/Owner Dashboard' : 'Rent a Car as Customer'}</span>
-                    </span>
-                    {isNormalUserMode && <Check className="h-3.5 w-3.5" />}
-                  </button>
-                )}
-
                 {/* Registered Users Directory (ADMIN ONLY - STRICTLY READ-ONLY, NO ACCOUNT SWITCHING) */}
                 {isAdmin && (
-                  <div className="space-y-1.5 pt-1 border-t border-neutral-800">
+                  <div className={`space-y-1.5 pt-1 border-t ${theme === 'dark' ? 'border-neutral-800' : 'border-slate-100'}`}>
                     <div className="flex items-center justify-between px-2 py-1">
-                      <span className="text-[10px] text-neutral-400 font-mono uppercase tracking-wider">
+                      <span className={`text-[10px] font-mono uppercase tracking-wider ${theme === 'dark' ? 'text-neutral-400' : 'text-slate-500'}`}>
                         Registered Accounts Directory
                       </span>
-                      <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      <span className="text-[9px] font-mono text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                         Admin View Only
                       </span>
                     </div>
@@ -363,10 +326,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <div className="flex items-center gap-1.5 shrink-0">
                             <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
                               u.role === 'admin' 
-                                ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' 
+                                ? (theme === 'dark' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-emerald-700 bg-emerald-50 border-emerald-200')
                                 : u.role === 'vehicle_owner' 
-                                ? 'text-teal-400 bg-teal-500/10 border-teal-500/20' 
-                                : 'text-blue-400 bg-blue-500/10 border-blue-500/20'
+                                ? (theme === 'dark' ? 'text-teal-400 bg-teal-500/10 border-teal-500/20' : 'text-teal-700 bg-teal-50 border-teal-200')
+                                : (theme === 'dark' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' : 'text-blue-700 bg-blue-50 border-blue-200')
                             }`}>
                               {u.role === 'admin' ? 'Admin' : u.role === 'vehicle_owner' ? 'Owner' : 'Customer'}
                             </span>
@@ -379,7 +342,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                     await onDeleteUser(u.id);
                                   }
                                 }}
-                                className="p-1 rounded bg-red-500/10 hover:bg-red-500/30 text-red-400 hover:text-red-300 transition-colors border border-red-500/20 cursor-pointer"
+                                className="p-1 rounded bg-red-500/10 hover:bg-red-500/30 text-red-500 hover:text-red-600 transition-colors border border-red-500/20 cursor-pointer"
                                 title={`Delete ${u.role === 'vehicle_owner' ? 'Owner' : 'Customer'} Profile`}
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -392,13 +355,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </div>
                 )}
 
-                <div className="pt-1 border-t border-neutral-800 space-y-1">
+                <div className={`pt-1 border-t space-y-1 ${theme === 'dark' ? 'border-neutral-800' : 'border-slate-100'}`}>
                   <button
                     onClick={() => {
                       setUserMenuOpen(false);
                       onLogout();
                     }}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-medium text-red-500 hover:bg-red-500/10 transition-colors"
                   >
                     <LogOut className="h-3.5 w-3.5" />
                     <span>Logout</span>
@@ -412,11 +375,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Mobile Tab Strip */}
-      <div className="lg:hidden flex items-center overflow-x-auto border-t border-neutral-800 px-4 py-2 gap-1 bg-neutral-950 text-xs">
+      <div className={`lg:hidden flex items-center overflow-x-auto border-t px-4 py-2 gap-1 text-xs ${
+        theme === 'dark' ? 'border-neutral-800 bg-neutral-950 text-neutral-300' : 'border-slate-200 bg-slate-50 text-slate-700'
+      }`}>
         <button
           onClick={() => setActiveTab('fleet')}
-          className={`px-3 py-1.5 rounded-md whitespace-nowrap ${
-            activeTab === 'fleet' ? 'bg-neutral-800 text-white font-bold' : 'text-neutral-400'
+          className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
+            activeTab === 'fleet' 
+              ? (theme === 'dark' ? 'bg-neutral-800 text-white font-bold' : 'bg-white text-slate-900 font-bold border border-slate-300 shadow-sm') 
+              : (theme === 'dark' ? 'text-neutral-400 hover:text-white' : 'text-slate-600 hover:text-slate-900')
           }`}
         >
           {isOwner ? 'My Cars' : 'Cars'}
@@ -424,8 +391,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         <button
           onClick={() => setActiveTab('bookings')}
-          className={`px-3 py-1.5 rounded-md whitespace-nowrap ${
-            activeTab === 'bookings' ? 'bg-neutral-800 text-white font-bold' : 'text-neutral-400'
+          className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
+            activeTab === 'bookings' 
+              ? (theme === 'dark' ? 'bg-neutral-800 text-white font-bold' : 'bg-white text-slate-900 font-bold border border-slate-300 shadow-sm') 
+              : (theme === 'dark' ? 'text-neutral-400 hover:text-white' : 'text-slate-600 hover:text-slate-900')
           }`}
         >
           Bookings
@@ -434,8 +403,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         {isOwner && (
           <button
             onClick={() => setActiveTab('earnings')}
-            className={`px-3 py-1.5 rounded-md whitespace-nowrap ${
-              activeTab === 'earnings' ? 'bg-neutral-800 text-white font-bold' : 'text-neutral-400'
+            className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
+              activeTab === 'earnings' 
+                ? (theme === 'dark' ? 'bg-neutral-800 text-white font-bold' : 'bg-white text-slate-900 font-bold border border-slate-300 shadow-sm') 
+                : (theme === 'dark' ? 'text-neutral-400 hover:text-white' : 'text-slate-600 hover:text-slate-900')
             }`}
           >
             Earnings
@@ -446,16 +417,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           <>
             <button
               onClick={() => setActiveTab('payouts')}
-              className={`px-3 py-1.5 rounded-md whitespace-nowrap ${
-                activeTab === 'payouts' ? 'bg-neutral-800 text-white font-bold' : 'text-neutral-400'
+              className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
+                activeTab === 'payouts' 
+                  ? (theme === 'dark' ? 'bg-neutral-800 text-white font-bold' : 'bg-white text-slate-900 font-bold border border-slate-300 shadow-sm') 
+                  : (theme === 'dark' ? 'text-neutral-400 hover:text-white' : 'text-slate-600 hover:text-slate-900')
               }`}
             >
               Payouts
             </button>
             <button
               onClick={() => setActiveTab('audit')}
-              className={`px-3 py-1.5 rounded-md whitespace-nowrap ${
-                activeTab === 'audit' ? 'bg-neutral-800 text-white font-bold' : 'text-neutral-400'
+              className={`px-3 py-1.5 rounded-md whitespace-nowrap transition-colors ${
+                activeTab === 'audit' 
+                  ? (theme === 'dark' ? 'bg-neutral-800 text-white font-bold' : 'bg-white text-slate-900 font-bold border border-slate-300 shadow-sm') 
+                  : (theme === 'dark' ? 'text-neutral-400 hover:text-white' : 'text-slate-600 hover:text-slate-900')
               }`}
             >
               History

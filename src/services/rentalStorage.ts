@@ -288,7 +288,16 @@ export class RentalStorageService {
   static getDisputes(): DisputeRecord[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.DISPUTES);
-      return data ? JSON.parse(data) : INITIAL_DISPUTES;
+      if (!data) return INITIAL_DISPUTES;
+      const stored: DisputeRecord[] = JSON.parse(data);
+      const storedIds = new Set(stored.map(d => d.id));
+      const merged = [...stored];
+      INITIAL_DISPUTES.forEach(init => {
+        if (!storedIds.has(init.id)) {
+          merged.push(init);
+        }
+      });
+      return merged;
     } catch {
       return INITIAL_DISPUTES;
     }

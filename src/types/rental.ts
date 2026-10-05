@@ -280,13 +280,47 @@ export interface MaintenanceLog {
 }
 
 export const INDIAN_LOCATIONS = [
+  // Bengaluru Hotspots
   { city: 'Bengaluru', hubName: 'Kempegowda Int\'l Airport (BLR) Hub', lat: 13.1986, lng: 77.7066 },
   { city: 'Bengaluru', hubName: 'Koramangala 80ft Road Hub', lat: 12.9352, lng: 77.6245 },
+  { city: 'Bengaluru', hubName: 'Indiranagar 100ft Road Hub', lat: 12.9784, lng: 77.6408 },
+  { city: 'Bengaluru', hubName: 'Whitefield ITPL Main Road Hub', lat: 12.9863, lng: 77.7348 },
+  { city: 'Bengaluru', hubName: 'Electronic City Phase 1 Hub', lat: 12.8399, lng: 77.6770 },
+
+  // Mumbai & MMR Hotspots
   { city: 'Mumbai', hubName: 'Chhatrapati Shivaji Maharaj T2 Hub', lat: 19.0896, lng: 72.8656 },
   { city: 'Mumbai', hubName: 'Bandra-Kurla Complex (BKC) Terminal', lat: 19.0688, lng: 72.8703 },
+  { city: 'Mumbai', hubName: 'Andheri West Lokhandwala Hub', lat: 19.1363, lng: 72.8277 },
+  { city: 'Mumbai', hubName: 'Colaba & Nariman Point Hub (South Mumbai)', lat: 18.9220, lng: 72.8347 },
+  { city: 'Mumbai', hubName: 'Navi Mumbai Vashi Sector 17 Hub', lat: 19.0771, lng: 72.9986 },
+
+  // Delhi NCR Hotspots
   { city: 'Delhi NCR', hubName: 'Indira Gandhi Int\'l Airport T3 Hub', lat: 28.5562, lng: 77.1000 },
   { city: 'Delhi NCR', hubName: 'Cyber City DLF Phase 2 Hub, Gurugram', lat: 28.4908, lng: 77.0890 },
+  { city: 'Delhi NCR', hubName: 'Connaught Place Inner Circle Hub', lat: 28.6304, lng: 77.2177 },
+  { city: 'Delhi NCR', hubName: 'Noida Sector 18 (Mall of India) Hub', lat: 28.5677, lng: 77.3210 },
+  { city: 'Delhi NCR', hubName: 'South Extension / Saket Citywalk Hub', lat: 28.5284, lng: 77.2193 },
+
+  // Hyderabad Hotspots
   { city: 'Hyderabad', hubName: 'Rajiv Gandhi Int\'l Airport Hub', lat: 17.2403, lng: 78.4294 },
+  { city: 'Hyderabad', hubName: 'HITEC City / Cyber Towers Hub', lat: 17.4504, lng: 78.3808 },
+  { city: 'Hyderabad', hubName: 'Gachibowli Financial District Hub', lat: 17.4225, lng: 78.3498 },
+  { city: 'Hyderabad', hubName: 'Banjara Hills Road No. 12 Hub', lat: 17.4156, lng: 78.4354 },
+
+  // Goa Hotspots
   { city: 'Goa', hubName: 'Manohar Int\'l Airport (MOPA) North Goa', lat: 15.7483, lng: 73.8647 },
+  { city: 'Goa', hubName: 'Dabolim Airport Hub (South Goa)', lat: 15.3808, lng: 73.8314 },
+  { city: 'Goa', hubName: 'Candolim & Calangute Beach Strip Hub', lat: 15.5173, lng: 73.7634 },
+  { city: 'Goa', hubName: 'Panaji City Center / Miramar Hub', lat: 15.4909, lng: 73.8278 },
+
+  // Pune Hotspots
   { city: 'Pune', hubName: 'Koregaon Park / Pune Airport Hub', lat: 18.5362, lng: 73.8958 },
+  { city: 'Pune', hubName: 'Hinjawadi IT Park Phase 1 Hub', lat: 18.5913, lng: 73.7389 },
+  { city: 'Pune', hubName: 'Baner - Balewadi High Street Hub', lat: 18.5590, lng: 73.7787 },
+  { city: 'Pune', hubName: 'Viman Nagar / Phoenix Marketcity Hub', lat: 18.5615, lng: 73.9167 },
+
+  // Chennai Hotspots
+  { city: 'Chennai', hubName: 'Chennai Int\'l Airport (MAA) Hub', lat: 12.9941, lng: 80.1709 },
+  { city: 'Chennai', hubName: 'OMR IT Corridor (Tidel Park) Hub', lat: 12.9897, lng: 80.2482 },
+  { city: 'Chennai', hubName: 'Anna Nagar & T. Nagar Central Hub', lat: 13.0418, lng: 80.2341 },
 ];

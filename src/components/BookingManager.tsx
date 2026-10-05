@@ -368,32 +368,60 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
                 )}
 
                 {/* Live Trip Lifecycle Steps */}
-                <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
-                  <div className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-emerald-400" />
+                <div className={`rounded-xl border p-4 space-y-3 ${
+                  theme === 'light' ? 'border-slate-200 bg-slate-50/80 text-slate-800' : 'border-neutral-800 bg-neutral-950/60 text-neutral-300'
+                }`}>
+                  <div className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                    theme === 'light' ? 'text-slate-900' : 'text-white'
+                  }`}>
+                    <Clock className="h-3.5 w-3.5 text-emerald-500" />
                     <span>Trip Progression</span>
                   </div>
 
                   <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
                     <div className="space-y-1">
                       <div className="h-2 rounded-full bg-emerald-500" />
-                      <span className="text-emerald-400 font-bold block">1. Booked</span>
+                      <span className={`font-bold block ${theme === 'light' ? 'text-emerald-700' : 'text-emerald-400'}`}>1. Booked</span>
                     </div>
                     <div className="space-y-1">
-                      <div className={`h-2 rounded-full ${activeBooking.status === 'active' || activeBooking.status === 'completed' ? 'bg-emerald-500' : 'bg-neutral-800'}`} />
-                      <span className={activeBooking.status === 'active' || activeBooking.status === 'completed' ? 'text-emerald-400 font-bold' : 'text-neutral-500'}>
+                      <div className={`h-2 rounded-full ${
+                        activeBooking.status === 'active' || activeBooking.status === 'completed' 
+                          ? 'bg-emerald-500' 
+                          : (theme === 'light' ? 'bg-slate-200' : 'bg-neutral-800')
+                      }`} />
+                      <span className={
+                        activeBooking.status === 'active' || activeBooking.status === 'completed' 
+                          ? (theme === 'light' ? 'text-emerald-700 font-bold' : 'text-emerald-400 font-bold') 
+                          : (theme === 'light' ? 'text-slate-400' : 'text-neutral-500')
+                      }>
                         2. Handover
                       </span>
                     </div>
                     <div className="space-y-1">
-                      <div className={`h-2 rounded-full ${activeBooking.status === 'active' || activeBooking.status === 'completed' ? 'bg-emerald-500' : 'bg-neutral-800'}`} />
-                      <span className={activeBooking.status === 'active' || activeBooking.status === 'completed' ? 'text-emerald-400 font-bold' : 'text-neutral-500'}>
+                      <div className={`h-2 rounded-full ${
+                        activeBooking.status === 'active' || activeBooking.status === 'completed' 
+                          ? 'bg-emerald-500' 
+                          : (theme === 'light' ? 'bg-slate-200' : 'bg-neutral-800')
+                      }`} />
+                      <span className={
+                        activeBooking.status === 'active' || activeBooking.status === 'completed' 
+                          ? (theme === 'light' ? 'text-emerald-700 font-bold' : 'text-emerald-400 font-bold') 
+                          : (theme === 'light' ? 'text-slate-400' : 'text-neutral-500')
+                      }>
                         3. Driving
                       </span>
                     </div>
                     <div className="space-y-1">
-                      <div className={`h-2 rounded-full ${activeBooking.status === 'completed' ? 'bg-emerald-500' : 'bg-neutral-800'}`} />
-                      <span className={activeBooking.status === 'completed' ? 'text-emerald-400 font-bold' : 'text-neutral-500'}>
+                      <div className={`h-2 rounded-full ${
+                        activeBooking.status === 'completed' 
+                          ? 'bg-emerald-500' 
+                          : (theme === 'light' ? 'bg-slate-200' : 'bg-neutral-800')
+                      }`} />
+                      <span className={
+                        activeBooking.status === 'completed' 
+                          ? (theme === 'light' ? 'text-emerald-700 font-bold' : 'text-emerald-400 font-bold') 
+                          : (theme === 'light' ? 'text-slate-400' : 'text-neutral-500')
+                      }>
                         4. Settled
                       </span>
                     </div>
@@ -402,78 +430,100 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
 
                 {/* Pickup & Return Timings & Locations */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="rounded-xl border border-neutral-800 bg-neutral-950/40 p-3 space-y-1">
-                    <div className="text-neutral-500 text-[10px] font-mono uppercase flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-emerald-400" />
+                  <div className={`rounded-xl border p-3 space-y-1 ${
+                    theme === 'light' ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-neutral-800 bg-neutral-950/40 text-neutral-300'
+                  }`}>
+                    <div className={`text-[10px] font-mono uppercase flex items-center gap-1 ${
+                      theme === 'light' ? 'text-slate-500' : 'text-neutral-500'
+                    }`}>
+                      <MapPin className="h-3 w-3 text-emerald-500" />
                       <span>Pickup Hub & Date</span>
                     </div>
-                    <div className="text-white font-semibold">
+                    <div className={`font-semibold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                       {activeBooking.startDate} &middot; {activeBooking.pickupTime || '09:00 AM'}
                     </div>
-                    <div className="text-neutral-400 text-[11px] truncate">
+                    <div className={`text-[11px] truncate ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
                       {activeBooking.pickupLocation || 'Bangalore City Hub'}
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-neutral-800 bg-neutral-950/40 p-3 space-y-1">
-                    <div className="text-neutral-500 text-[10px] font-mono uppercase flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-teal-400" />
+                  <div className={`rounded-xl border p-3 space-y-1 ${
+                    theme === 'light' ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-neutral-800 bg-neutral-950/40 text-neutral-300'
+                  }`}>
+                    <div className={`text-[10px] font-mono uppercase flex items-center gap-1 ${
+                      theme === 'light' ? 'text-slate-500' : 'text-neutral-500'
+                    }`}>
+                      <MapPin className="h-3 w-3 text-teal-500" />
                       <span>Return Hub & Date</span>
                     </div>
-                    <div className="text-white font-semibold">
+                    <div className={`font-semibold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                       {activeBooking.endDate} &middot; {activeBooking.returnTime || '06:00 PM'}
                     </div>
-                    <div className="text-neutral-400 text-[11px] truncate">
+                    <div className={`text-[11px] truncate ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
                       {activeBooking.dropoffLocation || 'Bangalore City Hub'}
                     </div>
                   </div>
                 </div>
 
                 {/* Driver / Customer KYC Details */}
-                <div className="rounded-xl border border-neutral-800 bg-neutral-950/40 p-3.5 space-y-2 text-xs">
+                <div className={`rounded-xl border p-3.5 space-y-2 text-xs ${
+                  theme === 'light' ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-neutral-800 bg-neutral-950/40 text-neutral-300'
+                }`}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-neutral-500 uppercase">DRIVER / RENTER DETAILS</span>
-                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 flex items-center gap-1">
+                    <span className={`text-[10px] font-mono uppercase ${
+                      theme === 'light' ? 'text-slate-500' : 'text-neutral-500'
+                    }`}>DRIVER / RENTER DETAILS</span>
+                    <span className="text-[10px] font-mono text-emerald-600 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 flex items-center gap-1">
                       <ShieldCheck className="h-3 w-3" />
                       <span>Verified ID</span>
                     </span>
                   </div>
-                  <div className="text-white font-bold">{activeBooking.customer?.name}</div>
-                  <div className="text-neutral-400 text-[11px] flex flex-wrap gap-x-4 gap-y-1 font-mono">
-                    <span>Email: <strong className="text-neutral-300">{activeBooking.customer?.email}</strong></span>
-                    <span>Phone: <strong className="text-neutral-300">{activeBooking.customer?.phone}</strong></span>
+                  <div className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{activeBooking.customer?.name}</div>
+                  <div className={`text-[11px] flex flex-wrap gap-x-4 gap-y-1 font-mono ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
+                    <span>Email: <strong className={theme === 'light' ? 'text-slate-900' : 'text-neutral-300'}>{activeBooking.customer?.email}</strong></span>
+                    <span>Phone: <strong className={theme === 'light' ? 'text-slate-900' : 'text-neutral-300'}>{activeBooking.customer?.phone}</strong></span>
                   </div>
-                  <div className="text-neutral-400 text-[11px] pt-1 border-t border-neutral-800/60 font-mono">
-                    DL: <strong className="text-neutral-300">{activeBooking.customer?.drivingLicense || 'KA-0520190088192'}</strong> &middot; Aadhaar: <strong className="text-neutral-300">{activeBooking.customer?.aadhaarMasked || 'XXXX-XXXX-3319'}</strong>
+                  <div className={`text-[11px] pt-1 border-t font-mono ${
+                    theme === 'light' ? 'border-slate-200 text-slate-600' : 'border-neutral-800/60 text-neutral-400'
+                  }`}>
+                    DL: <strong className={theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}>{activeBooking.customer?.drivingLicense || 'KA-0520190088192'}</strong> &middot; Aadhaar: <strong className={theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}>{activeBooking.customer?.aadhaarMasked || 'XXXX-XXXX-3319'}</strong>
                   </div>
                 </div>
 
                 {/* Complete Financial & Security Deposit Escrow Breakdown */}
-                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-2.5 text-xs">
-                  <div className="flex items-center justify-between font-bold text-white">
+                <div className={`rounded-xl border p-4 space-y-2.5 text-xs ${
+                  theme === 'light' ? 'border-emerald-200 bg-emerald-50/50' : 'border-emerald-500/20 bg-emerald-500/5'
+                }`}>
+                  <div className={`flex items-center justify-between font-bold ${
+                    theme === 'light' ? 'text-slate-900' : 'text-white'
+                  }`}>
                     <span>Payment & Deposit Breakdown</span>
-                    <span className="text-emerald-400 font-mono text-sm">
+                    <span className={`font-mono text-sm ${theme === 'light' ? 'text-emerald-700' : 'text-emerald-400'}`}>
                       Total: ₹{(activeBooking.totalRental || 0).toLocaleString()}
                     </span>
                   </div>
 
-                  <div className="divide-y divide-neutral-800/60 text-[11px]">
-                    <div className="flex justify-between py-1 text-neutral-300">
+                  <div className={`divide-y text-[11px] ${
+                    theme === 'light' ? 'divide-emerald-200/60' : 'divide-neutral-800/60'
+                  }`}>
+                    <div className={`flex justify-between py-1 ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>
                       <span>Rental Fee ({activeBooking.totalDays || 3} days)</span>
                       <span className="font-mono">₹{(activeBooking.totalRental || 0).toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between py-1 text-emerald-300 font-semibold">
+                    <div className={`flex justify-between py-1 font-semibold ${theme === 'light' ? 'text-emerald-800' : 'text-emerald-300'}`}>
                       <span>Refundable Security Deposit (Escrow)</span>
                       <span className="font-mono">₹{(activeBooking.depositAmount || 10000).toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between py-1 text-neutral-400">
+                    <div className={`flex justify-between py-1 ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
                       <span>GST (18% included)</span>
                       <span className="font-mono">₹{(activeBooking.gstAmount || Math.round((activeBooking.totalRental || 0) * 0.18)).toLocaleString()}</span>
                     </div>
 
                     {/* Owner Earnings */}
                     {isOwner && (
-                      <div className="flex justify-between py-1.5 text-emerald-400 font-bold border-t border-neutral-800">
+                      <div className={`flex justify-between py-1.5 font-bold border-t ${
+                        theme === 'light' ? 'text-emerald-700 border-emerald-200' : 'text-emerald-400 border-neutral-800'
+                      }`}>
                         <span>Your Payout (85%)</span>
                         <span className="font-mono">₹{(activeBooking.ownerNetShare || 0).toLocaleString()}</span>
                       </div>
@@ -481,28 +531,42 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
 
                     {/* Admin Commission */}
                     {isAdmin && (
-                      <div className="flex justify-between py-1.5 text-neutral-300 font-medium border-t border-neutral-800">
+                      <div className={`flex justify-between py-1.5 font-medium border-t ${
+                        theme === 'light' ? 'text-slate-700 border-emerald-200' : 'text-neutral-300 border-neutral-800'
+                      }`}>
                         <span>Platform Commission (15%)</span>
-                        <span className="font-mono text-emerald-400">₹{(activeBooking.platformCommission || 0).toLocaleString()}</span>
+                        <span className={`font-mono font-bold ${theme === 'light' ? 'text-emerald-700' : 'text-emerald-400'}`}>
+                          ₹{(activeBooking.platformCommission || 0).toLocaleString()}
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Quick Action Buttons */}
-                <div className="pt-2 border-t border-neutral-800 flex flex-wrap items-center justify-between gap-2">
+                <div className={`pt-2 border-t flex flex-wrap items-center justify-between gap-2 ${
+                  theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
+                }`}>
                   <button
                     onClick={() => onViewAgreement(activeBooking)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-200 hover:bg-neutral-700 text-xs font-semibold transition-colors"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                      theme === 'light' 
+                        ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50' 
+                        : 'border-neutral-700 bg-neutral-800 text-neutral-200 hover:bg-neutral-700'
+                    }`}
                   >
-                    <FileText className="h-3.5 w-3.5 text-emerald-400" />
+                    <FileText className="h-3.5 w-3.5 text-emerald-500" />
                     <span>View Rental Agreement</span>
                   </button>
 
                   {activeBooking.status === 'completed' && onOpenReturnDossier && (
                     <button
                       onClick={() => onOpenReturnDossier(activeBooking)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-xs font-bold transition-colors"
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
+                        theme === 'light'
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                      }`}
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       <span>View Final Invoice</span>
@@ -513,7 +577,7 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
                   {isAdmin && activeBooking.status === 'confirmed' && (
                     <button
                       onClick={() => onOpenCheckOut(activeBooking)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-xs font-bold shadow-sm"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm"
                     >
                       <KeyRound className="h-3.5 w-3.5" />
                       <span>Dispatch Car</span>
@@ -523,7 +587,7 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
                   {isAdmin && activeBooking.status === 'active' && (
                     <button
                       onClick={() => onOpenCheckIn(activeBooking)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-bold"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-sm"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       <span>Take Return</span>
@@ -533,7 +597,9 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
 
               </div>
             ) : (
-              <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-8 text-center text-xs text-neutral-500">
+              <div className={`rounded-2xl border p-8 text-center text-xs ${
+                theme === 'light' ? 'border-slate-200 bg-white text-slate-500' : 'border-neutral-800 bg-neutral-900/40 text-neutral-500'
+              }`}>
                 Select any booking on the left to view relevant details.
               </div>
             )}

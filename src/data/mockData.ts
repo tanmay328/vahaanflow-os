@@ -755,19 +755,85 @@ export const INITIAL_PAYOUTS: PayoutRecord[] = [
 ];
 
 export const INITIAL_DISPUTES: DisputeRecord[] = [
+  // Changes / Complaints made by Customer
   {
     id: 'disp-001',
-    bookingId: 'bk-ind-100',
+    bookingId: 'VLC-IN-8908',
     raisedBy: 'renter',
     reporterId: 'cust-103',
     reporterName: 'Dr. Ananya Murthy',
     title: 'Clarification on Toll Reimbursement',
-    description: 'Submitted physical toll receipt of ₹320; confirming it was settled against final security deposit.',
+    description: 'Submitted physical toll receipt of ₹320; confirming it was settled against final security deposit refund.',
     status: 'resolved',
     resolutionNotes: 'Verified receipt and reconciled in settlement invoice.',
     resolvedAt: '2026-09-27T16:30:00.000Z',
     resolvedBy: 'Vikram Shinde (Admin)',
     createdAt: '2026-09-27T16:15:00.000Z',
+  },
+  {
+    id: 'disp-002',
+    bookingId: 'VLC-IN-9102',
+    raisedBy: 'renter',
+    reporterId: 'cust-104',
+    reporterName: 'Rohan Verma',
+    title: 'Disputed Interior Cleaning Fee Deduction',
+    description: 'A deduction of ₹400 was applied for carpet dirt. Requesting review as floor mats were already stained at pickup time.',
+    status: 'open',
+    createdAt: '2026-10-02T11:45:00.000Z',
+  },
+
+  // Changes / Complaints made by Car Owner
+  {
+    id: 'disp-003',
+    bookingId: 'VLC-IN-8840',
+    raisedBy: 'owner',
+    reporterId: 'usr-owner-01',
+    reporterName: 'Rajesh Hegde',
+    title: 'Discrepancy in Monthly Maintenance Adjustment',
+    description: 'Routine oil servicing invoice of ₹3,200 submitted on Sep 22nd has not been reflected in the net payout balance statement.',
+    status: 'open',
+    createdAt: '2026-10-01T09:30:00.000Z',
+  },
+  {
+    id: 'disp-004',
+    bookingId: 'VLC-IN-7982',
+    raisedBy: 'owner',
+    reporterId: 'usr-owner-02',
+    reporterName: 'Priya Sharma',
+    title: 'Bank Account IFSC Update for Payout Routing',
+    description: 'Updated my HDFC current account details; requested confirmation that the next batch payout will route to the new account.',
+    status: 'resolved',
+    resolutionNotes: 'IFSC code and bank details verified with penny-drop verification. Updated in payout ledger.',
+    resolvedAt: '2026-09-29T14:10:00.000Z',
+    resolvedBy: 'Fleet Desk (Admin)',
+    createdAt: '2026-09-29T10:00:00.000Z',
+  },
+
+  // Changes / Complaints made by Admin
+  {
+    id: 'disp-005',
+    bookingId: 'VLC-IN-8908',
+    raisedBy: 'admin',
+    reporterId: 'usr-admin-01',
+    reporterName: 'Vikram Shinde (Admin)',
+    title: 'Late Return Penalty Assessment on KA 05 MN 4921',
+    description: 'Vehicle returned 3 hours past scheduled drop-off time without prior extension request. Applied standard late fee deduction.',
+    status: 'open',
+    createdAt: '2026-10-03T18:20:00.000Z',
+  },
+  {
+    id: 'disp-006',
+    bookingId: 'VLC-IN-6712',
+    raisedBy: 'admin',
+    reporterId: 'usr-admin-01',
+    reporterName: 'Fleet Desk (Admin)',
+    title: 'Fastag Toll Recharge Reconciliation Adjustment',
+    description: 'Automated Fastag deduction of ₹450 from airport expressway corridor added to renter closing invoice ledger.',
+    status: 'resolved',
+    resolutionNotes: 'Reconciled with NETC FASTag transaction log. Deducted from security deposit hold.',
+    resolvedAt: '2026-09-26T17:00:00.000Z',
+    resolvedBy: 'Vikram Shinde (Admin)',
+    createdAt: '2026-09-26T15:00:00.000Z',
   },
 ];
 

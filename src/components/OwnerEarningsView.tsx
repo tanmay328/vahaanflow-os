@@ -48,7 +48,8 @@ export const OwnerEarningsView: React.FC<OwnerEarningsViewProps> = ({
   const handleDownloadStatement = () => {
     let csv = 'Booking Number,Car Number,Start Date,End Date,Total Rent (INR),Platform Fee 15% (INR),My Earnings 85% (INR),Payment Status\n';
     ownerBookings.forEach(b => {
-      csv += `"${b.bookingCode}","${b.vehicle.licensePlate}","${b.startDate}","${b.endDate}",${b.totalRental},${b.platformCommission},${b.ownerNetShare},"${b.payoutStatus}"\n`;
+      const plate = b.vehicle?.licensePlate || 'N/A';
+      csv += `"${b.bookingCode}","${plate}","${b.startDate}","${b.endDate}",${b.totalRental},${b.platformCommission},${b.ownerNetShare},"${b.payoutStatus}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -199,26 +200,26 @@ export const OwnerEarningsView: React.FC<OwnerEarningsViewProps> = ({
               theme === 'light' ? 'divide-slate-100' : 'divide-neutral-800'
             }`}>
               {ownerPayouts.map(p => (
-                <tr key={p.id} className="hover:bg-neutral-800/40">
-                  <td className="py-2.5 px-3 text-neutral-300 font-semibold">{p.id}</td>
-                  <td className="py-2.5 px-3 text-white font-sans">{p.vehiclePlate}</td>
-                  <td className="py-2.5 px-3 text-neutral-400">₹{(p.grossAmount || 0).toLocaleString()}</td>
-                  <td className="py-2.5 px-3 text-red-400">-₹{(p.platformCommission || 0).toLocaleString()}</td>
-                  <td className="py-2.5 px-3 text-emerald-400 font-bold text-xs">₹{(p.netPayout || 0).toLocaleString()}</td>
+                <tr key={p.id} className={theme === 'light' ? 'hover:bg-slate-50' : 'hover:bg-neutral-800/40'}>
+                  <td className={`py-2.5 px-3 font-semibold ${theme === 'light' ? 'text-slate-700' : 'text-neutral-300'}`}>{p.id}</td>
+                  <td className={`py-2.5 px-3 font-sans font-semibold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{p.vehiclePlate}</td>
+                  <td className={`py-2.5 px-3 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>₹{(p.grossAmount || 0).toLocaleString()}</td>
+                  <td className="py-2.5 px-3 text-red-500 font-medium">-₹{(p.platformCommission || 0).toLocaleString()}</td>
+                  <td className="py-2.5 px-3 text-emerald-600 font-bold text-xs">₹{(p.netPayout || 0).toLocaleString()}</td>
                   <td className="py-2.5 px-3">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${
                       p.status === 'paid' 
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        ? (theme === 'light' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20')
+                        : (theme === 'light' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20')
                     }`}>
                       {p.status === 'paid' ? 'Paid to Bank' : 'Pending Transfer'}
                     </span>
                   </td>
-                  <td className="py-2.5 px-3 text-neutral-400 font-sans text-[11px]">
+                  <td className={`py-2.5 px-3 font-sans text-[11px] ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
                     {p.paidAt ? (
                       <span>{p.transactionRef || 'NEFT Transfer'} ({new Date(p.paidAt).toLocaleDateString()})</span>
                     ) : (
-                      <span className="text-amber-400/80">Pending admin transfer</span>
+                      <span className="text-amber-600 font-medium">Pending admin transfer</span>
                     )}
                   </td>
                 </tr>
@@ -231,71 +232,96 @@ export const OwnerEarningsView: React.FC<OwnerEarningsViewProps> = ({
       {/* Dispute Modal */}
       {disputeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-lg rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
-              <div className="flex items-center gap-2 text-white font-bold text-sm">
-                <LifeBuoy className="h-4 w-4 text-amber-400" />
-                <span>Report an Issue or Complaint to Admin</span>
+          <div className={`relative w-full max-w-lg rounded-2xl border p-6 shadow-2xl space-y-4 ${
+            theme === 'light' ? 'bg-white border-slate-200 text-slate-900' : 'border-neutral-800 bg-neutral-900 text-neutral-100'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${
+              theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
+            }`}>
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <LifeBuoy className="h-4 w-4 text-amber-500" />
+                <span className={theme === 'light' ? 'text-slate-900' : 'text-white'}>Report an Issue or Complaint to Admin</span>
               </div>
-              <button onClick={() => setDisputeModalOpen(false)} className="text-neutral-400 hover:text-white">
+              <button 
+                onClick={() => setDisputeModalOpen(false)} 
+                className={`transition-colors cursor-pointer ${theme === 'light' ? 'text-slate-400 hover:text-slate-800' : 'text-neutral-400 hover:text-white'}`}
+              >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleDisputeSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block text-neutral-400 mb-1">Subject</label>
+                <label className={`block mb-1 font-medium ${theme === 'light' ? 'text-slate-700' : 'text-neutral-400'}`}>Subject</label>
                 <input
                   type="text"
                   required
                   value={disputeTitle}
                   onChange={e => setDisputeTitle(e.target.value)}
                   placeholder="e.g. Damage claim review or payment inquiry"
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
+                  className={`w-full rounded-lg border px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none ${
+                    theme === 'light' 
+                      ? 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400' 
+                      : 'border-neutral-800 bg-neutral-950 text-white placeholder:text-neutral-500'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block text-neutral-400 mb-1">Related Booking (Optional)</label>
+                <label className={`block mb-1 font-medium ${theme === 'light' ? 'text-slate-700' : 'text-neutral-400'}`}>Related Booking (Optional)</label>
                 <select
                   value={disputeBookingId}
                   onChange={e => setDisputeBookingId(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
+                  className={`w-full rounded-lg border px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none ${
+                    theme === 'light' 
+                      ? 'border-slate-300 bg-white text-slate-900' 
+                      : 'border-neutral-800 bg-neutral-950 text-white'
+                  }`}
                 >
                   <option value="">General Support / No specific booking</option>
                   {ownerBookings.map(b => (
                     <option key={b.id} value={b.id}>
-                      {b.bookingCode} - {b.vehicle.make} {b.vehicle.model}
+                      {b.bookingCode} - {b.vehicle?.make || 'Car'} {b.vehicle?.model || ''}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-neutral-400 mb-1">Explain the Issue in Detail</label>
+                <label className={`block mb-1 font-medium ${theme === 'light' ? 'text-slate-700' : 'text-neutral-400'}`}>Explain the Issue in Detail</label>
                 <textarea
                   required
                   rows={4}
                   value={disputeDescription}
                   onChange={e => setDisputeDescription(e.target.value)}
                   placeholder="Tell us what happened so the admin can help you..."
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
+                  className={`w-full rounded-lg border px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none ${
+                    theme === 'light' 
+                      ? 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400' 
+                      : 'border-neutral-800 bg-neutral-950 text-white placeholder:text-neutral-500'
+                  }`}
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-neutral-800">
+              <div className={`flex justify-end gap-2 pt-2 border-t ${
+                theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
+              }`}>
                 <button
                   type="button"
                   onClick={() => setDisputeModalOpen(false)}
-                  className="px-3 py-1.5 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-300"
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${
+                    theme === 'light' 
+                      ? 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200' 
+                      : 'border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold"
+                  className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-colors cursor-pointer"
                 >
-                  Send Complaint
+                  Submit Complaint
                 </button>
               </div>
             </form>

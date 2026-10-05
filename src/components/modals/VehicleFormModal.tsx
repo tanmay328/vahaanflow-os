@@ -13,7 +13,9 @@ import {
   Trash2,
   CheckCircle2,
   Sparkles,
-  Camera
+  Camera,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface VehicleFormModalProps {
@@ -27,12 +29,12 @@ interface VehicleFormModalProps {
 }
 
 const PRESET_CAR_PHOTOS = [
-  { name: 'Tata Nexon EV (Teal/White)', url: '/images/nexon_ev_blue_1790848422140.jpg' },
-  { name: 'Mahindra XUV700 (White SUV)', url: '/images/suv_premium_black_1790847653822.jpg' },
-  { name: 'Hyundai Creta / Alcazar', url: '/images/luxury_sedan_black_1790848433946.jpg' },
-  { name: 'Mahindra Thar 4x4', url: '/images/mahindra_thar_black_1791025566221.jpg' },
-  { name: 'Honda City / Verna Sedan', url: '/images/sedan_luxury_ev_1790847641852.jpg' },
-  { name: 'Toyota Innova Hycross', url: '/images/toyota_innova_hycross_1791025553936.jpg' },
+  { name: 'Tata Nexon EV (Teal/White)', url: '/images/nexon_ev_blue_1790848422140.jpg', make: 'Tata', model: 'Nexon EV Empowered', category: 'Compact EV' as VehicleCategory, fuelType: 'Electric' as FuelType },
+  { name: 'Mahindra XUV700 (White SUV)', url: '/images/suv_premium_black_1790847653822.jpg', make: 'Mahindra', model: 'XUV700 AX7L AWD', category: 'SUV' as VehicleCategory, fuelType: 'Diesel' as FuelType },
+  { name: 'Hyundai Creta / Alcazar', url: '/images/luxury_sedan_black_1790848433946.jpg', make: 'Hyundai', model: 'Creta SX(O)', category: 'SUV' as VehicleCategory, fuelType: 'Petrol' as FuelType },
+  { name: 'Mahindra Thar 4x4', url: '/images/mahindra_thar_black_1791025566221.jpg', make: 'Mahindra', model: 'Thar LX 4x4 Hardtop', category: 'Off-Roader' as VehicleCategory, fuelType: 'Diesel' as FuelType },
+  { name: 'Honda City / Verna Sedan', url: '/images/sedan_luxury_ev_1790847641852.jpg', make: 'Honda', model: 'City ZX i-VTEC', category: 'Sedan' as VehicleCategory, fuelType: 'Petrol' as FuelType },
+  { name: 'Toyota Innova Hycross', url: '/images/toyota_innova_hycross_1791025553936.jpg', make: 'Toyota', model: 'Innova Hycross ZX(O)', category: 'MPV' as VehicleCategory, fuelType: 'Strong Hybrid' as FuelType },
 ];
 
 export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
@@ -59,7 +61,24 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   const [fuelType, setFuelType] = useState<FuelType>(initialVehicle?.fuelType || 'Diesel');
   const [seatingCapacity, setSeatingCapacity] = useState<number>(initialVehicle?.seatingCapacity || 7);
   const [odometer, setOdometer] = useState<number>(initialVehicle?.odometer || 12400);
-  const [fuelPct, setFuelPct] = useState<number>(initialVehicle?.fuelOrBatteryPct || 90);
+
+  // Energy source type: Battery/EV or Fuel
+  type FuelDropdownOption = 'full' | 'more_than_half' | 'half' | 'less_than_half' | 'low';
+  const getInitialFuelOption = (pct: number): FuelDropdownOption => {
+    if (pct >= 85) return 'full';
+    if (pct >= 60) return 'more_than_half';
+    if (pct >= 40) return 'half';
+    if (pct >= 20) return 'less_than_half';
+    return 'low';
+  };
+
+  const [energyType, setEnergyType] = useState<'fuel' | 'ev'>(
+    initialVehicle?.fuelType === 'Electric' ? 'ev' : 'fuel'
+  );
+  const [fuelOption, setFuelOption] = useState<FuelDropdownOption>(
+    getInitialFuelOption(initialVehicle?.fuelOrBatteryPct ?? 90)
+  );
+  const [fuelPct, setFuelPct] = useState<number>(initialVehicle?.fuelOrBatteryPct ?? 90);
 
   // Photos State
   const [image, setImage] = useState<string>(initialVehicle?.image || '');
@@ -81,10 +100,14 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   const [depositAmount, setDepositAmount] = useState<number>(initialVehicle?.depositAmount || 10000);
 
   // Location
-  const [city, setCity] = useState<string>(initialVehicle?.currentLocation.city || 'Bengaluru');
-  const [hubName, setHubName] = useState<string>(
-    initialVehicle?.currentLocation.hubName || 'Kempegowda Int\'l Airport (BLR) Hub'
-  );
+  const initialCity = initialVehicle?.currentLocation?.city || 'Bengaluru';
+  const initialCityHubs = INDIAN_LOCATIONS.filter(l => l.city === initialCity);
+  const initialHub = (initialVehicle?.currentLocation?.hubName && initialCityHubs.some(h => h.hubName === initialVehicle.currentLocation.hubName))
+    ? initialVehicle.currentLocation.hubName
+    : (initialCityHubs[0]?.hubName || '');
+
+  const [city, setCity] = useState<string>(initialCity);
+  const [hubName, setHubName] = useState<string>(initialHub);
 
   // Documents & "Skip for now" option
   const [skipDocsForNow, setSkipDocsForNow] = useState<boolean>(
@@ -96,9 +119,71 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   const [permitType, setPermitType] = useState<any>(initialVehicle?.documents?.permitType || 'All India Tourist Permit (AITP)');
 
   // Personal use blocked dates
+  const [blockedDatesList, setBlockedDatesList] = useState<string[]>(
+    initialVehicle?.blockedDates ? [...initialVehicle.blockedDates] : []
+  );
   const [blockedDatesInput, setBlockedDatesInput] = useState<string>(
     initialVehicle?.blockedDates?.join(', ') || ''
   );
+
+  // Calendar month state
+  const [calendarDate, setCalendarDate] = useState<Date>(() => {
+    if (initialVehicle?.blockedDates && initialVehicle.blockedDates.length > 0) {
+      const parsed = new Date(initialVehicle.blockedDates[0]);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return new Date();
+  });
+  const [datePickerValue, setDatePickerValue] = useState<string>('');
+
+  const handleToggleDate = (dateStr: string) => {
+    let nextList: string[];
+    if (blockedDatesList.includes(dateStr)) {
+      nextList = blockedDatesList.filter(d => d !== dateStr);
+    } else {
+      nextList = [...blockedDatesList, dateStr].sort();
+    }
+    setBlockedDatesList(nextList);
+    setBlockedDatesInput(nextList.join(', '));
+  };
+
+  const handleAddSingleDate = () => {
+    if (!datePickerValue) return;
+    if (!blockedDatesList.includes(datePickerValue)) {
+      const nextList = [...blockedDatesList, datePickerValue].sort();
+      setBlockedDatesList(nextList);
+      setBlockedDatesInput(nextList.join(', '));
+    }
+    setDatePickerValue('');
+  };
+
+  const handleRemoveDate = (dateToRemove: string) => {
+    const nextList = blockedDatesList.filter(d => d !== dateToRemove);
+    setBlockedDatesList(nextList);
+    setBlockedDatesInput(nextList.join(', '));
+  };
+
+  const handleClearAllDates = () => {
+    setBlockedDatesList([]);
+    setBlockedDatesInput('');
+  };
+
+  const handleBlockUpcomingWeekend = () => {
+    const now = new Date();
+    const day = now.getDay();
+    const daysUntilSaturday = (6 - day + 7) % 7 || 7;
+    const sat = new Date(now);
+    sat.setDate(now.getDate() + daysUntilSaturday);
+    const sun = new Date(sat);
+    sun.setDate(sat.getDate() + 1);
+
+    const satStr = sat.toISOString().split('T')[0];
+    const sunStr = sun.toISOString().split('T')[0];
+
+    const combined = Array.from(new Set([...blockedDatesList, satStr, sunStr])).sort();
+    setBlockedDatesList(combined);
+    setBlockedDatesInput(combined.join(', '));
+  };
 
   if (!isOpen) return null;
 
@@ -156,10 +241,11 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
 
     const selectedOwner = allOwners.find(o => o.id === selectedOwnerId) || currentUser;
 
-    const blockedDates = blockedDatesInput
+    const parsedInput = blockedDatesInput
       .split(',')
       .map(d => d.trim())
       .filter(d => d.length > 0);
+    const blockedDates = Array.from(new Set([...blockedDatesList, ...parsedInput])).sort();
 
     const vehicleData: Vehicle = {
       id: initialVehicle?.id || `veh-${Date.now()}`,
@@ -195,8 +281,8 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
         city,
         hubName,
         bay: initialVehicle?.currentLocation.bay || 'Bay 1',
-        lat: 13.1986,
-        lng: 77.7066,
+        lat: INDIAN_LOCATIONS.find(l => l.city === city && l.hubName === hubName)?.lat ?? 13.1986,
+        lng: INDIAN_LOCATIONS.find(l => l.city === city && l.hubName === hubName)?.lng ?? 77.7066,
       },
       odometer: Number(odometer),
       fuelOrBatteryPct: Number(fuelPct),
@@ -340,9 +426,29 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                   <select
                     defaultValue=""
                     onChange={e => {
-                      if (e.target.value) {
-                        setImage(e.target.value);
-                        setCustomUrl('');
+                      const selectedVal = e.target.value;
+                      if (selectedVal === 'custom') {
+                        // User chose manual entry
+                        return;
+                      }
+                      if (selectedVal) {
+                        const found = PRESET_CAR_PHOTOS.find(p => p.url === selectedVal);
+                        if (found) {
+                          setImage(found.url);
+                          setCustomUrl('');
+                          setMake(found.make);
+                          setModel(found.model);
+                          setCategory(found.category);
+                          setFuelType(found.fuelType);
+                          if (found.fuelType === 'Electric') {
+                            setEnergyType('ev');
+                          } else {
+                            setEnergyType('fuel');
+                          }
+                        } else {
+                          setImage(selectedVal);
+                          setCustomUrl('');
+                        }
                       }
                     }}
                     className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white text-xs focus:border-emerald-500 focus:outline-none"
@@ -353,7 +459,47 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                         {p.name}
                       </option>
                     ))}
+                    <option value="custom">✏️ Other / Manually Enter Car Name & Photo...</option>
                   </select>
+                </div>
+
+                {/* Option to Manually Enter the Car Name */}
+                <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-white text-xs font-bold flex items-center gap-1.5">
+                      <Car className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>Manually Enter Car Name:</span>
+                    </label>
+                    <span className="text-[10px] text-emerald-400 font-mono">Custom Brand & Model</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-neutral-400 text-[10px] mb-1">Brand / Company</label>
+                      <input
+                        type="text"
+                        required
+                        value={make}
+                        onChange={e => setMake(e.target.value)}
+                        placeholder="e.g. Maruti, Hyundai, Kia, Tata"
+                        className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-white text-xs placeholder-neutral-500 focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-neutral-400 text-[10px] mb-1">Car Model Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={model}
+                        onChange={e => setModel(e.target.value)}
+                        placeholder="e.g. Swift ZXi, Seltos, Creta SX"
+                        className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-white text-xs placeholder-neutral-500 focus:border-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-neutral-400 leading-tight">
+                    Type your car brand and model name here. This title will be shown on the car rental profile.
+                  </p>
                 </div>
 
                 {/* Custom URL Input */}
@@ -448,28 +594,16 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
           <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
             <h3 className="text-xs font-bold text-white uppercase tracking-wider">Car Specifications</h3>
             
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-neutral-400 mb-1">Brand / Company</label>
+                <label className="block text-neutral-400 mb-1">Car Number Plate</label>
                 <input
                   type="text"
                   required
-                  value={make}
-                  onChange={e => setMake(e.target.value)}
-                  placeholder="e.g. Maruti, Hyundai, Tata"
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 mb-1">Model Name</label>
-                <input
-                  type="text"
-                  required
-                  value={model}
-                  onChange={e => setModel(e.target.value)}
-                  placeholder="e.g. Swift, Creta, Nexon"
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
+                  value={licensePlate}
+                  onChange={e => setLicensePlate(e.target.value.toUpperCase())}
+                  placeholder="e.g. DL 01 EV 3490"
+                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white font-mono uppercase focus:border-emerald-500 focus:outline-none"
                 />
               </div>
 
@@ -481,21 +615,7 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                   max="2026"
                   value={year}
                   onChange={e => setYear(Number(e.target.value))}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-neutral-400 mb-1">Car Number Plate</label>
-                <input
-                  type="text"
-                  required
-                  value={licensePlate}
-                  onChange={e => setLicensePlate(e.target.value.toUpperCase())}
-                  placeholder="e.g. DL 01 EV 3490"
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white font-mono uppercase focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none font-mono"
                 />
               </div>
 
@@ -519,7 +639,15 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                 <label className="block text-neutral-400 mb-1">Fuel Type</label>
                 <select
                   value={fuelType}
-                  onChange={e => setFuelType(e.target.value as FuelType)}
+                  onChange={e => {
+                    const val = e.target.value as FuelType;
+                    setFuelType(val);
+                    if (val === 'Electric') {
+                      setEnergyType('ev');
+                    } else {
+                      setEnergyType('fuel');
+                    }
+                  }}
                   className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
                 >
                   <option value="Petrol">Petrol</option>
@@ -528,7 +656,9 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                   <option value="Strong Hybrid">Hybrid</option>
                 </select>
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block text-neutral-400 mb-1">Seats</label>
                 <input
@@ -537,12 +667,10 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                   max="16"
                   value={seatingCapacity}
                   onChange={e => setSeatingCapacity(Number(e.target.value))}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none font-mono"
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-neutral-400 mb-1">Gear Type</label>
                 <select
@@ -565,16 +693,89 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="block text-neutral-400 mb-1">Current Fuel / Battery %</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={fuelPct}
-                  onChange={e => setFuelPct(Number(e.target.value))}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white font-mono focus:border-emerald-500 focus:outline-none"
-                />
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="block text-neutral-400 text-xs">
+                    {energyType === 'ev' ? 'Current Battery' : 'Current Fuel'}
+                  </label>
+
+                  {/* Option for selecting Battery / EV vs Fuel */}
+                  <div className="inline-flex rounded-md border border-neutral-800 bg-neutral-950 p-0.5 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEnergyType('fuel');
+                        if (fuelType === 'Electric') setFuelType('Petrol');
+                        if (fuelOption === 'full') setFuelPct(100);
+                        else if (fuelOption === 'more_than_half') setFuelPct(75);
+                        else if (fuelOption === 'half') setFuelPct(50);
+                        else if (fuelOption === 'less_than_half') setFuelPct(25);
+                        else if (fuelOption === 'low') setFuelPct(10);
+                      }}
+                      className={`px-2 py-0.5 rounded font-semibold transition-all cursor-pointer ${
+                        energyType === 'fuel'
+                          ? 'bg-neutral-800 text-emerald-400 shadow-sm'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      Fuel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEnergyType('ev');
+                        setFuelType('Electric');
+                      }}
+                      className={`px-2 py-0.5 rounded font-semibold transition-all cursor-pointer ${
+                        energyType === 'ev'
+                          ? 'bg-neutral-800 text-emerald-400 shadow-sm'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      Battery / EV
+                    </button>
+                  </div>
+                </div>
+
+                {energyType === 'ev' ? (
+                  /* EV selected: enter percentage in numbers */
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={fuelPct}
+                      onChange={e => {
+                        const val = Number(e.target.value);
+                        setFuelPct(isNaN(val) ? 0 : Math.min(100, Math.max(0, val)));
+                      }}
+                      placeholder="e.g. 91"
+                      className="w-full rounded-lg border border-neutral-800 bg-neutral-900 pl-3 pr-8 py-2 text-white font-mono focus:border-emerald-500 focus:outline-none"
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs font-mono text-neutral-400">%</span>
+                  </div>
+                ) : (
+                  /* Fuel selected: dropdown with options (full, more than half, half, less than half, low) */
+                  <select
+                    value={fuelOption}
+                    onChange={e => {
+                      const opt = e.target.value as FuelDropdownOption;
+                      setFuelOption(opt);
+                      if (opt === 'full') setFuelPct(100);
+                      else if (opt === 'more_than_half') setFuelPct(75);
+                      else if (opt === 'half') setFuelPct(50);
+                      else if (opt === 'less_than_half') setFuelPct(25);
+                      else if (opt === 'low') setFuelPct(10);
+                    }}
+                    className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
+                  >
+                    <option value="full">Full</option>
+                    <option value="more_than_half">More than half</option>
+                    <option value="half">Half</option>
+                    <option value="less_than_half">Less than half</option>
+                    <option value="low">Low</option>
+                  </select>
+                )}
               </div>
             </div>
           </div>
@@ -687,25 +888,203 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
             </div>
           </div>
 
-          {/* Section 5: Block Dates for Personal Use */}
-          <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-emerald-400" />
-                <span>Block Dates for Personal / Family Use</span>
-              </label>
-              <span className="text-[10px] text-neutral-500">Comma-separated (YYYY-MM-DD)</span>
+          {/* Section 5: Block Dates for Personal Use - Interactive Calendar Plugin */}
+          <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800/80 pb-2.5">
+              <div>
+                <label className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-emerald-400" />
+                  <span>Block Dates for Personal / Family Use</span>
+                </label>
+                <p className="text-[11px] text-neutral-400 mt-0.5">
+                  Click any date on the calendar to block or unblock. Customers cannot book on these dates.
+                </p>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleBlockUpcomingWeekend}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-medium border border-neutral-700 bg-neutral-900 text-neutral-200 hover:text-white hover:border-emerald-500/50 transition-colors cursor-pointer"
+                >
+                  + Block This Weekend
+                </button>
+                {blockedDatesList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAllDates}
+                    className="px-2 py-1 rounded-md text-[11px] text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
             </div>
-            <input
-              type="text"
-              value={blockedDatesInput}
-              onChange={e => setBlockedDatesInput(e.target.value)}
-              placeholder="e.g. 2026-10-20, 2026-10-21"
-              className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white placeholder-neutral-500 focus:border-emerald-500 focus:outline-none"
-            />
-            <p className="text-[10px] text-neutral-400">
-              Customers will NOT be able to book your car on these dates so you can use it yourself.
-            </p>
+
+            {/* Calendar Plugin Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+              
+              {/* Interactive Calendar Month Grid */}
+              <div className="md:col-span-8 rounded-xl border border-neutral-800 bg-neutral-900/80 p-3 space-y-2">
+                {/* Month Navigator Header */}
+                <div className="flex items-center justify-between px-1 pb-1.5 border-b border-neutral-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1));
+                    }}
+                    className="p-1 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                    title="Previous Month"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+
+                  <span className="text-xs font-bold text-white tracking-wide">
+                    {calendarDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
+                    }}
+                    className="p-1 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                    title="Next Month"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Day of Week Headers */}
+                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-neutral-500 uppercase">
+                  <span>Su</span>
+                  <span>Mo</span>
+                  <span>Tu</span>
+                  <span>We</span>
+                  <span>Th</span>
+                  <span>Fr</span>
+                  <span>Sa</span>
+                </div>
+
+                {/* Days Grid */}
+                <div className="grid grid-cols-7 gap-1">
+                  {(() => {
+                    const year = calendarDate.getFullYear();
+                    const month = calendarDate.getMonth();
+                    const firstDayOfWeek = new Date(year, month, 1).getDay();
+                    const totalDays = new Date(year, month + 1, 0).getDate();
+                    const blanks = Array.from({ length: firstDayOfWeek });
+                    const days = Array.from({ length: totalDays }, (_, i) => i + 1);
+                    const todayStr = new Date().toISOString().split('T')[0];
+
+                    return (
+                      <>
+                        {blanks.map((_, idx) => (
+                          <div key={`blank-${idx}`} className="h-7 w-full" />
+                        ))}
+                        {days.map(d => {
+                          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                          const isBlocked = blockedDatesList.includes(dateStr);
+                          const isToday = dateStr === todayStr;
+
+                          return (
+                            <button
+                              key={dateStr}
+                              type="button"
+                              onClick={() => handleToggleDate(dateStr)}
+                              className={`h-7 w-full rounded text-xs font-mono font-medium transition-all flex items-center justify-center cursor-pointer ${
+                                isBlocked
+                                  ? 'bg-amber-500 text-neutral-950 font-bold shadow-sm ring-1 ring-amber-400'
+                                  : isToday
+                                  ? 'border border-emerald-500/60 bg-emerald-500/10 text-emerald-400 hover:bg-neutral-800'
+                                  : 'text-neutral-300 hover:bg-neutral-800 hover:text-white'
+                              }`}
+                              title={isBlocked ? `Blocked on ${dateStr} (Click to unblock)` : `Click to block ${dateStr}`}
+                            >
+                              {d}
+                            </button>
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Calendar Legend */}
+                <div className="flex items-center gap-4 text-[10px] text-neutral-400 pt-1 border-t border-neutral-800/60">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded bg-amber-500" />
+                    <span>Blocked for Personal Use</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded border border-emerald-500/60 bg-emerald-500/20" />
+                    <span>Today</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Native Date Picker & Blocked Dates List */}
+              <div className="md:col-span-4 space-y-2.5">
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-300 mb-1">
+                    Pick Date from Calendar:
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="date"
+                      value={datePickerValue}
+                      onChange={e => setDatePickerValue(e.target.value)}
+                      className="flex-1 rounded-lg border border-neutral-800 bg-neutral-900 px-2.5 py-1.5 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddSingleDate}
+                      disabled={!datePickerValue}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
+                    >
+                      Block
+                    </button>
+                  </div>
+                </div>
+
+                {/* Blocked Dates Chips Card */}
+                <div className="rounded-lg border border-neutral-800 bg-neutral-950/80 p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-neutral-300">Blocked Dates:</span>
+                    <span className="font-mono text-emerald-400 font-bold">
+                      {blockedDatesList.length} {blockedDatesList.length === 1 ? 'day' : 'days'}
+                    </span>
+                  </div>
+
+                  {blockedDatesList.length === 0 ? (
+                    <p className="text-[10px] text-neutral-500 italic py-1">
+                      No dates blocked. Click any date on the calendar to block it.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 max-h-36 overflow-y-auto pr-1 pt-0.5">
+                      {blockedDatesList.map(dateStr => (
+                        <span
+                          key={dateStr}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 border border-amber-500/30 text-amber-300"
+                        >
+                          <span>{dateStr}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDate(dateStr)}
+                            className="hover:text-white p-0.5 cursor-pointer"
+                            title={`Unblock ${dateStr}`}
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
           </div>
 
           {/* Section 6: Documents with "Skip for now" Option */}
@@ -793,7 +1172,12 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
               <label className="block text-neutral-400 mb-1">City</label>
               <select
                 value={city}
-                onChange={e => setCity(e.target.value)}
+                onChange={e => {
+                  const newCity = e.target.value;
+                  setCity(newCity);
+                  const firstHub = INDIAN_LOCATIONS.find(l => l.city === newCity);
+                  setHubName(firstHub ? firstHub.hubName : '');
+                }}
                 className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
               >
                 {Array.from(new Set(INDIAN_LOCATIONS.map(l => l.city))).map(c => (

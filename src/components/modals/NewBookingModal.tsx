@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Vehicle, Booking } from '../../types/rental';
 import { UserProfile } from '../../types/auth';
 import { EmailService } from '../../services/emailService';
+import { RentalStorageService } from '../../services/rentalStorage';
 import { cleanImageUrl } from '../../utils/imageHelper';
 import { 
   X, 
@@ -80,7 +81,7 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
   const dailyRate = selectedVehicle?.dailyRate || 3800;
   const depositAmount = selectedVehicle?.depositAmount || 10000;
   const totalRental = dailyRate * totalDays;
-  const platformCommissionRate = 0.15;
+  const platformCommissionRate = RentalStorageService.getSettings()?.commissionRate ?? 0.15;
   const platformCommission = Math.round(totalRental * platformCommissionRate);
   const gstAmount = Math.round(totalRental * 0.18);
   const ownerNetShare = totalRental - platformCommission;
@@ -418,11 +419,11 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
                 <span className="font-mono font-semibold">₹{depositAmount.toLocaleString()}</span>
               </div>
               <div className={`flex justify-between py-1 ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`}>
-                <span>Platform Fee (15%)</span>
+                <span>Platform Fee ({Math.round(platformCommissionRate * 100)}%)</span>
                 <span className="font-mono">₹{platformCommission.toLocaleString()}</span>
               </div>
               <div className={`flex justify-between py-1 ${theme === 'light' ? 'text-emerald-700' : 'text-emerald-400'}`}>
-                <span>Car Owner Share (85%)</span>
+                <span>Car Owner Share ({Math.round((1 - platformCommissionRate) * 100)}%)</span>
                 <span className="font-mono font-bold">₹{ownerNetShare.toLocaleString()}</span>
               </div>
             </div>

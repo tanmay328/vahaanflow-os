@@ -134,9 +134,14 @@ export default function App() {
 
   // Handlers for Session
   const handleLoginSuccess = (user: UserProfile) => {
+    // Ensure owner and admin stay in their dashboard role
+    if (user.role !== 'renter' && user.activeViewMode === 'renter') {
+      user.activeViewMode = user.role;
+      AuthService.setCurrentUser(user);
+    }
     setCurrentUser(user);
     setActiveTab('fleet');
-    showToast(`Welcome, ${user.name}`, `Signed in as ${user.role === 'admin' ? 'Admin' : 'Car Owner'}.`, 'success');
+    showToast(`Welcome, ${user.name}`, `Signed in as ${user.role === 'admin' ? 'Admin' : (user.role === 'vehicle_owner' ? 'Car Owner' : 'Customer')}.`, 'success');
   };
 
   const handleLogout = async () => {
@@ -619,29 +624,32 @@ export default function App() {
   };
 
   // DISPUTES
-  const handleReportDispute = async (title: string, description: string, bookingId?: string) => {
+  const handleReportDispute = async (title: string, description: string, bookingId?: string, raisedBy?: 'admin' | 'owner' | 'renter') => {
+    const determinedRole = raisedBy || (currentUser?.role === 'admin' ? 'admin' : 'owner');
     const newDispute: DisputeRecord = {
       id: `disp-${Date.now()}`,
       bookingId: bookingId || 'General',
-      raisedBy: currentUser?.role === 'admin' ? 'admin' : 'owner',
+      raisedBy: determinedRole,
       reporterId: currentUser?.id || 'unknown',
-      reporterName: currentUser?.name || 'Vehicle Owner',
+      reporterName: determinedRole === 'admin' ? (currentUser?.name ? `${currentUser.name} (Admin)` : 'Fleet Operations Desk (Admin)') : (currentUser?.name || 'User'),
       title,
       description,
       status: 'open',
       createdAt: new Date().toISOString(),
     };
     await RentalStorageService.saveDispute(newDispute);
+    setDisputes(prev => [newDispute, ...prev]);
 
+    const auditRole = currentUser?.role || (determinedRole === 'owner' ? 'vehicle_owner' : determinedRole);
     await RentalStorageService.logAudit({
       category: 'DISPUTE',
       action: 'Dispute Ticket Raised',
-      summary: `Ticket "${title}" filed by ${currentUser?.name}.`,
-      actor: { id: currentUser?.id || 'usr', name: currentUser?.name || 'Owner', role: currentUser?.role || 'vehicle_owner' },
+      summary: `Ticket "${title}" filed (${determinedRole.toUpperCase()}).`,
+      actor: { id: currentUser?.id || 'usr', name: currentUser?.name || 'User', role: auditRole },
       severity: 'warning',
     });
 
-    showToast('Dispute Reported', 'Your ticket has been sent to platform administration for review.', 'info');
+    showToast('Dispute Reported', 'Incident/complaint registered successfully.', 'info');
   };
 
   const handleResolveDispute = async (disputeId: string, resolution: string) => {
@@ -716,36 +724,6 @@ export default function App() {
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
-
-      {/* Normal User Mode Banner (Shown to Admin & Owners switching into Customer view) */}
-      {currentUser.role !== 'renter' && currentUser.activeViewMode === 'renter' && (
-        <div className={`border-b px-4 py-2 text-xs transition-colors duration-200 ${
-          theme === 'light'
-            ? 'border-emerald-200 bg-emerald-50/80 text-slate-900'
-            : 'border-emerald-500/20 bg-emerald-950/40 text-neutral-100'
-        }`}>
-          <div className="mx-auto max-w-7xl flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span 
-                className={`h-2 w-2 rounded-full animate-pulse ${
-                  theme === 'light' ? 'bg-[#00bc7d]' : 'bg-emerald-400'
-                }`}
-              />
-              <span className={theme === 'light' ? 'text-slate-900' : 'text-neutral-200'}>
-                You are currently in <strong className={`font-bold ${theme === 'light' ? 'text-[#00bc7d]' : 'text-emerald-400'}`}>Customer Mode (Rent a Car)</strong>.
-              </span>
-            </div>
-            <button
-              onClick={handleToggleNormalUserMode}
-              className={`text-xs font-semibold underline transition-colors ${
-                theme === 'light' ? 'text-emerald-700 hover:text-emerald-800' : 'text-emerald-400 hover:text-emerald-300'
-              }`}
-            >
-              Back to {currentUser.role === 'admin' ? 'Admin' : 'Car Owner'} Dashboard
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Main Workspace */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
@@ -831,11 +809,27 @@ export default function App() {
               settings={settings}
               onExecutePayout={handleExecutePayout}
               onResolveDispute={handleResolveDispute}
+              onReportDispute={handleReportDispute}
               theme={theme}
               onSaveSettings={(s) => {
                 RentalStorageService.saveSettings(s);
                 setSettings(s);
-                showToast('Settings Saved', 'Platform rules and tax rates updated.', 'success');
+                showToast('Settings Saved', 'Platform rules and fee split updated.', 'success');
+              }}
+              onUpdatePendingSplit={(newCommissionRate) => {
+                const updatedPayouts = payouts.map(p => {
+                  if (p.status === 'pending') {
+                    const gross = p.grossAmount || (p.netPayout + (p.platformCommission || 0));
+                    const comm = Math.round(gross * newCommissionRate);
+                    const net = gross - comm;
+                    const updated = { ...p, platformCommission: comm, netPayout: net };
+                    RentalStorageService.savePayout(updated);
+                    return updated;
+                  }
+                  return p;
+                });
+                setPayouts(updatedPayouts);
+                showToast('Pending Payouts Recalculated', `Updated to ${Math.round((1 - newCommissionRate) * 100)}% Owner / ${Math.round(newCommissionRate * 100)}% Platform.`, 'info');
               }}
             />
           )}
@@ -862,8 +856,19 @@ export default function App() {
               onCompleteLog={(mId) => {
                 const m = maintenance.find(item => item.id === mId);
                 if (m) {
-                  RentalStorageService.saveMaintenance({ ...m, status: 'completed' });
+                  const updated = { ...m, status: 'completed' as const };
+                  RentalStorageService.saveMaintenance(updated);
+                  setMaintenance(prev => prev.map(item => item.id === mId ? updated : item));
                   showToast('Service Completed', 'Vehicle returned to service ready.', 'success');
+                }
+              }}
+              onRevertLog={(mId) => {
+                const m = maintenance.find(item => item.id === mId);
+                if (m) {
+                  const updated = { ...m, status: 'in_progress' as const };
+                  RentalStorageService.saveMaintenance(updated);
+                  setMaintenance(prev => prev.map(item => item.id === mId ? updated : item));
+                  showToast('Action Undone', 'Vehicle moved back to In Workshop status.', 'info');
                 }
               }}
             />
@@ -907,6 +912,7 @@ export default function App() {
           vehicle={vehicles.find(v => v.id === checkOutBookingTarget.vehicleId)}
           onClose={() => setCheckOutBookingTarget(null)}
           onSubmitCheckOut={handleSubmitCheckOut}
+          theme={theme}
         />
       )}
 
@@ -916,6 +922,7 @@ export default function App() {
           vehicle={vehicles.find(v => v.id === checkInBookingTarget.vehicleId)}
           onClose={() => setCheckInBookingTarget(null)}
           onSubmitCheckIn={handleSubmitCheckIn}
+          theme={theme}
         />
       )}
 
@@ -924,6 +931,7 @@ export default function App() {
           booking={agreementBookingTarget}
           vehicle={vehicles.find(v => v.id === agreementBookingTarget.vehicleId)}
           onClose={() => setAgreementBookingTarget(null)}
+          theme={theme}
         />
       )}
 
@@ -937,6 +945,7 @@ export default function App() {
             setReturnDossierBookingTarget(null);
             setAgreementBookingTarget(b);
           }}
+          theme={theme}
         />
       )}
 

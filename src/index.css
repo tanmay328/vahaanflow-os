@@ -29,7 +29,7 @@
   background: rgba(82, 82, 91, 1);
 }
 
-/* Beautiful Light Theme Global Overrides for Cards, Modals, Tables & Inputs */
+/* Beautiful Light Theme Global Overrides for Cards, Modals, Tables, Text & Inputs */
 .light {
   background-color: #f8fafc;
   color: #0f172a;
@@ -46,8 +46,13 @@
 .light .bg-neutral-950,
 .light .bg-neutral-950\/95,
 .light .bg-neutral-950\/80,
+.light .bg-neutral-950\/70,
 .light .bg-neutral-950\/60,
-.light .bg-neutral-950\/40 {
+.light .bg-neutral-950\/40,
+.light div.bg-neutral-800,
+.light .bg-neutral-800\/80:not(button),
+.light .bg-neutral-800\/60:not(button),
+.light .bg-neutral-800\/40:not(button) {
   background-color: #f1f5f9 !important;
 }
 
@@ -55,29 +60,54 @@
 .light .border-neutral-800\/80,
 .light .border-neutral-800\/60,
 .light .border-neutral-800\/40,
+.light .border-neutral-750,
 .light .border-neutral-700,
 .light .border-neutral-700\/60,
 .light .border-neutral-700\/40 {
   border-color: #cbd5e1 !important;
 }
 
-/* Ensure solid action buttons, badges, and white text stay crisp white */
-.light .text-white,
-.light [class*="bg-emerald-600"],
-.light [class*="bg-emerald-700"],
-.light [class*="bg-blue-600"],
-.light [class*="bg-amber-600"],
-.light [class*="bg-orange-600"],
-.light [class*="bg-rose-600"],
-.light button[class*="bg-emerald-"] {
+.light .divide-neutral-800 > :not([hidden]) ~ :not([hidden]),
+.light .divide-neutral-800\/80 > :not([hidden]) ~ :not([hidden]),
+.light .divide-neutral-800\/60 > :not([hidden]) ~ :not([hidden]),
+.light .divide-neutral-750 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* Ensure solid action buttons and primary badges stay crisp white in light mode */
+.light button.bg-emerald-600,
+.light button.bg-emerald-700,
+.light button.bg-emerald-500:not(.text-neutral-950),
+.light button.bg-blue-600,
+.light button.bg-blue-500,
+.light button.bg-rose-600,
+.light button.bg-red-600,
+.light button.bg-indigo-600,
+.light a.bg-emerald-600,
+.light a.bg-emerald-700 {
   color: #ffffff !important;
+}
+
+/* Fallback: If text-white is used inside light theme containers, make it dark slate #0f172a unless on a colored/dark background */
+.light .text-white:not(button.bg-emerald-600):not(button.bg-emerald-700):not(button.bg-emerald-500):not(button.bg-blue-600):not(button.bg-blue-500):not(button.bg-rose-600):not(button.bg-red-600):not(a.bg-emerald-600):not([class*="bg-slate-900"]):not([class*="bg-slate-800"]):not([class*="bg-black"]):not([class*="bg-emerald-600"]):not([class*="bg-blue-600"]):not([class*="bg-rose-600"]):not([class*="bg-red-600"]) {
+  color: #0f172a !important;
+}
+
+.light h1.text-white,
+.light h2.text-white,
+.light h3.text-white,
+.light h4.text-white {
+  color: #0f172a !important;
 }
 
 .light .text-neutral-100 {
   color: #0f172a !important;
 }
 
-.light .text-neutral-200,
+.light .text-neutral-200 {
+  color: #1e293b !important;
+}
+
 .light .text-neutral-300 {
   color: #334155 !important;
 }
@@ -90,9 +120,34 @@
   color: #64748b !important;
 }
 
+/* Contrast enhancement for colored accents on white/light backgrounds */
+.light .text-emerald-400:not(button):not([class*="bg-slate-900"]):not([class*="bg-black"]) {
+  color: #047857 !important;
+}
+
+.light .text-emerald-300:not(button):not([class*="bg-slate-900"]):not([class*="bg-black"]) {
+  color: #065f46 !important;
+}
+
+.light .text-teal-400:not(button):not([class*="bg-slate-900"]):not([class*="bg-black"]) {
+  color: #0f766e !important;
+}
+
+.light .text-blue-400:not(button):not([class*="bg-slate-900"]):not([class*="bg-black"]) {
+  color: #1d4ed8 !important;
+}
+
+.light .text-amber-400:not(button):not([class*="bg-slate-900"]):not([class*="bg-black"]) {
+  color: #b45309 !important;
+}
+
+.light .text-rose-400:not(button):not([class*="bg-slate-900"]):not([class*="bg-black"]) {
+  color: #be123c !important;
+}
+
 /* Input elements inside Light Theme containers */
 .light select,
-.light input,
+.light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 .light textarea {
   background-color: #ffffff !important;
   color: #0f172a !important;
@@ -106,6 +161,11 @@
   box-shadow: 0 0 0 1px #059669 !important;
 }
 
+.light ::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1;
+}
+
 /* Button & Card tweaks inside Light theme */
 .light button.bg-neutral-800,
 .light button.bg-neutral-800\/80 {
@@ -117,4 +177,14 @@
 .light button.bg-neutral-800:hover,
 .light button.bg-neutral-800\/80:hover {
   background-color: #e2e8f0 !important;
+}
+
+.light button.bg-neutral-700 {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light button.bg-neutral-700:hover {
+  background-color: #cbd5e1 !important;
 }

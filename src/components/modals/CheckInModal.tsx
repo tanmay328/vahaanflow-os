@@ -40,6 +40,7 @@ interface CheckInModalProps {
     totalDeductions: number;
     netDepositRefund: number;
   }) => void;
+  theme?: 'dark' | 'light';
 }
 
 export const CheckInModal: React.FC<CheckInModalProps> = ({
@@ -47,7 +48,17 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
   vehicle,
   onClose,
   onSubmitCheckIn,
+  theme = 'dark',
 }) => {
+  const resolvedVehicle = vehicle || booking.vehicle || {
+    make: 'Car',
+    model: '',
+    licensePlate: 'N/A',
+  };
+  const resolvedCustomer = booking.customer || {
+    name: 'Customer',
+  };
+
   const startOdo = booking.dispatchCheckOut?.startOdometer || vehicle?.odometer || 15000;
   const startFuel = booking.dispatchCheckOut?.startFuelPct || 90;
 
@@ -195,31 +206,41 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="relative w-full max-w-3xl rounded-2xl border border-neutral-800 bg-neutral-900 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className={`relative w-full max-w-3xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[92vh] ${
+        theme === 'light' ? 'border-slate-200 bg-white text-slate-900' : 'border-neutral-800 bg-neutral-900 text-neutral-100'
+      }`}>
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-neutral-800 px-6 py-4 bg-neutral-950/80">
+        <div className={`flex items-center justify-between border-b px-6 py-4 ${
+          theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-neutral-800 bg-neutral-950/80'
+        }`}>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-white">Car Return & Final Bill</h2>
-              <span className="font-mono text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              <h2 className={`text-base font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Car Return & Final Bill</h2>
+              <span className={`font-mono text-xs px-2 py-0.5 rounded border ${
+                theme === 'light' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+              }`}>
                 {booking.bookingCode}
               </span>
             </div>
-            <p className="text-xs text-neutral-400">
-              {booking.vehicle.make} {booking.vehicle.model} ({booking.vehicle.licensePlate}) &middot; Customer: {booking.customer.name}
+            <p className={`text-xs ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
+              {resolvedVehicle.make} {resolvedVehicle.model} ({resolvedVehicle.licensePlate}) &middot; Customer: {resolvedCustomer.name}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition-colors"
+            className={`p-1.5 rounded-lg transition-colors ${
+              theme === 'light' ? 'text-slate-400 hover:text-slate-800 hover:bg-slate-200' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+            }`}
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Scrollable Form */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 text-xs text-neutral-300">
+        <form onSubmit={handleSubmit} className={`p-6 overflow-y-auto space-y-6 text-xs ${
+          theme === 'light' ? 'text-slate-700' : 'text-neutral-300'
+        }`}>
           
           {/* Section 1: 7-Point Photo Inspection */}
           <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
@@ -518,17 +539,19 @@ export const CheckInModal: React.FC<CheckInModalProps> = ({
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-800">
+          <div className={`flex items-center justify-end gap-3 pt-3 border-t ${theme === 'light' ? 'border-slate-200' : 'border-neutral-800'}`}>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 font-medium"
+              className={`px-4 py-2 rounded-lg border font-medium transition-colors ${
+                theme === 'light' ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50' : 'border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+              }`}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold transition-colors shadow-lg shadow-emerald-500/20"
+              className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors shadow-lg shadow-emerald-500/20"
             >
               Confirm Return & Refund Deposit
             </button>

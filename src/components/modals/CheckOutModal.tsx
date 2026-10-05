@@ -28,6 +28,7 @@ interface CheckOutModalProps {
     inspectionNotes?: string;
     customerSignature?: string;
   }) => void;
+  theme?: 'dark' | 'light';
 }
 
 export const CheckOutModal: React.FC<CheckOutModalProps> = ({
@@ -35,11 +36,21 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
   vehicle,
   onClose,
   onSubmitCheckOut,
+  theme = 'dark',
 }) => {
+  const resolvedVehicle = vehicle || booking.vehicle || {
+    make: 'Car',
+    model: '',
+    licensePlate: 'N/A',
+  };
+  const resolvedCustomer = booking.customer || {
+    name: 'Customer',
+  };
+
   const [startOdometer, setStartOdometer] = useState<number>(vehicle?.odometer || 18000);
   const [startFuelPct, setStartFuelPct] = useState<number>(vehicle?.fuelOrBatteryPct || 90);
   const [dispatchedBy, setDispatchedBy] = useState<string>('Staff / Admin');
-  const [customerSignature, setCustomerSignature] = useState<string>(booking.customer.name);
+  const [customerSignature, setCustomerSignature] = useState<string>(resolvedCustomer.name);
   const [inspectionNotes, setInspectionNotes] = useState<string>(
     'Car is neat and clean. Tool kit, spare wheel, and RC copy present in car.'
   );
@@ -85,40 +96,52 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="relative w-full max-w-2xl rounded-2xl border border-neutral-800 bg-neutral-900 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className={`relative w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ${
+        theme === 'light' ? 'border-slate-200 bg-white text-slate-900' : 'border-neutral-800 bg-neutral-900 text-neutral-100'
+      }`}>
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-neutral-800 px-6 py-4 bg-neutral-950/80">
+        <div className={`flex items-center justify-between border-b px-6 py-4 ${
+          theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-neutral-800 bg-neutral-950/80'
+        }`}>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold text-white">Car Handover (Start Trip)</h2>
-              <span className="font-mono text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              <h2 className={`text-base font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>Car Handover (Start Trip)</h2>
+              <span className={`font-mono text-xs px-2 py-0.5 rounded border ${
+                theme === 'light' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+              }`}>
                 {booking.bookingCode}
               </span>
             </div>
-            <p className="text-xs text-neutral-400">
-              {booking.vehicle.make} {booking.vehicle.model} ({booking.vehicle.licensePlate}) &middot; Giving to {booking.customer.name}
+            <p className={`text-xs ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
+              {resolvedVehicle.make} {resolvedVehicle.model} ({resolvedVehicle.licensePlate}) &middot; Giving to {resolvedCustomer.name}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition-colors"
+            className={`p-1.5 rounded-lg transition-colors ${
+              theme === 'light' ? 'text-slate-400 hover:text-slate-800 hover:bg-slate-200' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+            }`}
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 text-xs text-neutral-300">
+        <form onSubmit={handleSubmit} className={`p-6 overflow-y-auto space-y-5 text-xs ${
+          theme === 'light' ? 'text-slate-700' : 'text-neutral-300'
+        }`}>
           
           {/* Section 1: 7-Point Photo Inspection */}
-          <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
+          <div className={`rounded-xl border p-4 space-y-3 ${
+            theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-neutral-800 bg-neutral-950/60'
+          }`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 font-bold text-white text-xs">
-                <Camera className="h-4 w-4 text-emerald-400" />
+              <div className={`flex items-center gap-2 font-bold text-xs ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                <Camera className="h-4 w-4 text-emerald-500" />
                 <span>Take 7 Car Photos before Giving Keys</span>
               </div>
-              <span className="text-[10px] text-neutral-500">
+              <span className={`text-[10px] ${theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}`}>
                 Tap to check off each photo
               </span>
             </div>
@@ -139,15 +162,15 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                   onClick={() => setPhotos(prev => ({ ...prev, [item.key]: !prev[item.key as keyof typeof prev] }))}
                   className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-colors ${
                     photos[item.key as keyof typeof photos]
-                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                      : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:bg-neutral-800'
+                      ? (theme === 'light' ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300')
+                      : (theme === 'light' ? 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100' : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:bg-neutral-800')
                   }`}
                 >
                   <span className="font-medium text-[11px]">{item.label}</span>
                   {photos[item.key as keyof typeof photos] ? (
-                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                    <Check className={`h-3.5 w-3.5 ${theme === 'light' ? 'text-emerald-600' : 'text-emerald-400'}`} />
                   ) : (
-                    <Camera className="h-3.5 w-3.5 text-neutral-500" />
+                    <Camera className="h-3.5 w-3.5 text-neutral-400" />
                   )}
                 </button>
               ))}
@@ -156,10 +179,12 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
 
           {/* Section 2: KM and Fuel Level */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2">
-              <label className="flex items-center justify-between text-white font-semibold">
+            <div className={`rounded-xl border p-4 space-y-2 ${
+              theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-neutral-800 bg-neutral-950/60'
+            }`}>
+              <label className={`flex items-center justify-between font-semibold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                 <span className="flex items-center gap-1.5">
-                  <Gauge className="h-4 w-4 text-emerald-400" />
+                  <Gauge className="h-4 w-4 text-emerald-500" />
                   <span>Starting KM Reading</span>
                 </span>
               </label>
@@ -167,20 +192,24 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                 type="number"
                 value={startOdometer}
                 onChange={e => setStartOdometer(Number(e.target.value))}
-                className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white font-mono text-base focus:border-emerald-500 focus:outline-none"
+                className={`w-full rounded-lg border px-3 py-2 font-mono text-base focus:border-emerald-500 focus:outline-none ${
+                  theme === 'light' ? 'border-slate-300 bg-white text-slate-900' : 'border-neutral-800 bg-neutral-900 text-white'
+                }`}
               />
-              <span className="text-[10px] text-neutral-500 block">
+              <span className={`text-[10px] block ${theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}`}>
                 Free Allowance: {(vehicle?.kmAllowancePerDay || 300) * booking.totalDays} km ({vehicle?.kmAllowancePerDay || 300} km/day)
               </span>
             </div>
 
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2">
-              <label className="flex items-center justify-between text-white font-semibold">
+            <div className={`rounded-xl border p-4 space-y-2 ${
+              theme === 'light' ? 'border-slate-200 bg-slate-50' : 'border-neutral-800 bg-neutral-950/60'
+            }`}>
+              <label className={`flex items-center justify-between font-semibold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                 <span className="flex items-center gap-1.5">
-                  <Fuel className="h-4 w-4 text-emerald-400" />
+                  <Fuel className="h-4 w-4 text-emerald-500" />
                   <span>Starting Fuel Level</span>
                 </span>
-                <span className="font-mono text-emerald-400">{startFuelPct}%</span>
+                <span className={`font-mono ${theme === 'light' ? 'text-emerald-700' : 'text-emerald-400'}`}>{startFuelPct}%</span>
               </label>
               <input
                 type="range"
@@ -190,7 +219,7 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
                 onChange={e => setStartFuelPct(Number(e.target.value))}
                 className="w-full accent-emerald-500 mt-2"
               />
-              <span className="text-[10px] text-neutral-500 block">
+              <span className={`text-[10px] block ${theme === 'light' ? 'text-slate-500' : 'text-neutral-500'}`}>
                 Customer should return car with at least {startFuelPct}% fuel or pay fuel charge.
               </span>
             </div>
@@ -199,51 +228,59 @@ export const CheckOutModal: React.FC<CheckOutModalProps> = ({
           {/* Section 3: Notes & Customer Signature */}
           <div className="space-y-3">
             <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">Car Condition Notes</label>
+              <label className={`block text-[11px] mb-1 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>Car Condition Notes</label>
               <textarea
                 value={inspectionNotes}
                 onChange={e => setInspectionNotes(e.target.value)}
                 rows={2}
                 placeholder="Mention any existing scratch or notes"
-                className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
+                className={`w-full rounded-lg border px-3 py-2 focus:border-emerald-500 focus:outline-none ${
+                  theme === 'light' ? 'border-slate-300 bg-white text-slate-900' : 'border-neutral-800 bg-neutral-900 text-white'
+                }`}
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] text-neutral-400 mb-1">Person Giving Keys (Staff / Admin)</label>
+                <label className={`block text-[11px] mb-1 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>Person Giving Keys (Staff / Admin)</label>
                 <input
                   type="text"
                   value={dispatchedBy}
                   onChange={e => setDispatchedBy(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
+                  className={`w-full rounded-lg border px-3 py-2 focus:border-emerald-500 focus:outline-none ${
+                    theme === 'light' ? 'border-slate-300 bg-white text-slate-900' : 'border-neutral-800 bg-neutral-900 text-white'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] text-neutral-400 mb-1">Customer Name / Signature</label>
+                <label className={`block text-[11px] mb-1 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>Customer Name / Signature</label>
                 <input
                   type="text"
                   value={customerSignature}
                   onChange={e => setCustomerSignature(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white font-serif italic text-sm focus:border-emerald-500 focus:outline-none"
+                  className={`w-full rounded-lg border px-3 py-2 font-serif italic text-sm focus:border-emerald-500 focus:outline-none ${
+                    theme === 'light' ? 'border-slate-300 bg-white text-slate-900' : 'border-neutral-800 bg-neutral-900 text-white'
+                  }`}
                 />
               </div>
             </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-800">
+          <div className={`flex items-center justify-end gap-3 pt-3 border-t ${theme === 'light' ? 'border-slate-200' : 'border-neutral-800'}`}>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 font-medium"
+              className={`px-4 py-2 rounded-lg border font-medium transition-colors ${
+                theme === 'light' ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50' : 'border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+              }`}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold transition-colors shadow-lg shadow-emerald-500/20"
+              className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors shadow-lg shadow-emerald-500/20"
             >
               Confirm & Hand Over Keys
             </button>

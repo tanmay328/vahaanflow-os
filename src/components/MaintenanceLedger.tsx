@@ -4,7 +4,8 @@ import {
   Wrench, 
   Plus, 
   ShieldCheck, 
-  X 
+  X,
+  RotateCcw
 } from 'lucide-react';
 
 interface MaintenanceLedgerProps {
@@ -12,6 +13,7 @@ interface MaintenanceLedgerProps {
   vehicles: Vehicle[];
   onAddLog: (newLog: MaintenanceLog) => void;
   onCompleteLog: (maintenanceId: string) => void;
+  onRevertLog?: (maintenanceId: string) => void;
   theme?: 'dark' | 'light';
 }
 
@@ -20,6 +22,7 @@ export const MaintenanceLedger: React.FC<MaintenanceLedgerProps> = ({
   vehicles,
   onAddLog,
   onCompleteLog,
+  onRevertLog,
   theme = 'dark',
 }) => {
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -137,17 +140,31 @@ export const MaintenanceLedger: React.FC<MaintenanceLedgerProps> = ({
                 <td className="py-3 px-3 text-right">
                   {m.status !== 'completed' ? (
                     <button
+                      type="button"
                       onClick={() => onCompleteLog(m.id)}
-                      className={`px-2.5 py-1 rounded font-bold text-[10px] transition-colors ${
+                      className={`px-2.5 py-1 rounded font-bold text-[10px] transition-colors cursor-pointer shadow-sm ${
                         theme === 'light'
-                          ? 'bg-slate-100 border border-slate-300 text-slate-800 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 shadow-sm'
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-600'
                           : 'bg-neutral-800 hover:bg-emerald-500 hover:text-neutral-950 text-neutral-300'
                       }`}
                     >
                       Mark Finished
                     </button>
                   ) : (
-                    <span className={`text-[10px] font-sans ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`}>Ready for rent</span>
+                    <button
+                      type="button"
+                      onClick={() => onRevertLog?.(m.id)}
+                      title="Click to undo: return vehicle to In Workshop status"
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded font-medium text-[10px] transition-all cursor-pointer border ${
+                        theme === 'light'
+                          ? 'border-slate-200 bg-slate-50 text-slate-700 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-800 shadow-sm'
+                          : 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-300'
+                      }`}
+                    >
+                      <RotateCcw className="h-3 w-3 text-amber-400" />
+                      <span>Ready for rent</span>
+                      <span className="text-[9px] text-amber-400/90 font-semibold">(Undo)</span>
+                    </button>
                   )}
                 </td>
               </tr>
