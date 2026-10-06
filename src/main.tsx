@@ -14,7 +14,7 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 createRoot(document.getElementById('root')!).render(
-  <ErrorBoundary fallbackTitle="VahaanFlow encountered an error">
+  <ErrorBoundary fallbackTitle="GoDrive encountered an error">
     <App />
   </ErrorBoundary>
 );

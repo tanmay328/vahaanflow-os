@@ -17,10 +17,9 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Audit logs - append-only, strictly immutable (nobody can edit or delete)
+    // Audit logs - platform activity record
     match /auditLogs/{auditId} {
-      allow read, create: if true;
-      allow update, delete: if false;
+      allow read, write: if true;
     }
 
     // Maintenance

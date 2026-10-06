@@ -19,6 +19,7 @@ import { cleanImageUrl } from '../utils/imageHelper';
 interface FleetOverviewProps {
   vehicles: Vehicle[];
   currentUser: UserProfile;
+  allUsers?: UserProfile[];
   onSelectVehicle: (vehicle: Vehicle) => void;
   onStartBookingForVehicle: (vehicle: Vehicle) => void;
   onAddNewVehicle: () => void;
@@ -33,6 +34,7 @@ interface FleetOverviewProps {
 export const FleetOverview: React.FC<FleetOverviewProps> = ({
   vehicles,
   currentUser,
+  allUsers,
   onSelectVehicle,
   onStartBookingForVehicle,
   onAddNewVehicle,
@@ -53,16 +55,28 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
   // Two-step delete confirmation (browser confirm()/prompt() are blocked in AI Studio's preview frame)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  // Strict Role Isolation: Owner sees only own vehicles!
+  // Strict Role Isolation: Owner sees only own vehicles! Suspending an owner hides their cars from customers.
   const scopedVehicles = useMemo(() => {
     if (isOwner) {
       return vehicles.filter(v => v.ownerId === currentUser.id);
     }
     if (isNormalUserMode) {
-      return vehicles.filter(v => v.approvalStatus === 'approved' && v.status !== 'blocked');
+      const suspendedOwnerIds = new Set(
+        (allUsers || []).filter(u => u.approvalStatus === 'suspended' || u.ownerDetails?.approvalStatus === 'suspended').map(u => u.id)
+      );
+      const suspendedOwnerEmails = new Set(
+        (allUsers || []).filter(u => u.approvalStatus === 'suspended' || u.ownerDetails?.approvalStatus === 'suspended').map(u => u.email.toLowerCase())
+      );
+
+      return vehicles.filter(v => 
+        v.approvalStatus === 'approved' && 
+        v.status !== 'blocked' &&
+        !suspendedOwnerIds.has(v.ownerId) &&
+        !suspendedOwnerEmails.has((v.ownerEmail || '').toLowerCase())
+      );
     }
     return vehicles;
-  }, [vehicles, isOwner, isNormalUserMode, currentUser.id]);
+  }, [vehicles, isOwner, isNormalUserMode, currentUser.id, allUsers]);
 
   const filteredVehicles = useMemo(() => {
     return scopedVehicles.filter(v => {

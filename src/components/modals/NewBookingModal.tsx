@@ -19,6 +19,7 @@ interface NewBookingModalProps {
   vehicles: Vehicle[];
   initialVehicle?: Vehicle | null;
   currentUser?: UserProfile | null;
+  allUsers?: UserProfile[];
   onClose: () => void;
   onSubmitBooking: (booking: Booking) => void;
   theme?: 'dark' | 'light';
@@ -28,14 +29,26 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
   vehicles = [],
   initialVehicle,
   currentUser,
+  allUsers,
   onClose,
   onSubmitBooking,
   theme = 'dark',
 }) => {
+  // Exclude vehicles belonging to suspended owners
+  const activeVehicles = vehicles.filter(v => {
+    if (allUsers && allUsers.length > 0) {
+      const owner = allUsers.find(u => u.id === v.ownerId || (u.email && u.email.toLowerCase() === (v.ownerEmail || '').toLowerCase()));
+      if (owner && (owner.approvalStatus === 'suspended' || owner.ownerDetails?.approvalStatus === 'suspended')) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   // Selectable vehicles: approved and available, or all approved vehicles if none marked available
-  const availableVehicles = vehicles.filter(v => v.approvalStatus === 'approved' && v.status === 'available');
-  const fallbackList = availableVehicles.length > 0 ? availableVehicles : vehicles.filter(v => v.approvalStatus === 'approved');
-  const allChoices = fallbackList.length > 0 ? fallbackList : vehicles;
+  const availableVehicles = activeVehicles.filter(v => v.approvalStatus === 'approved' && v.status === 'available');
+  const fallbackList = availableVehicles.length > 0 ? availableVehicles : activeVehicles.filter(v => v.approvalStatus === 'approved');
+  const allChoices = fallbackList.length > 0 ? fallbackList : activeVehicles;
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
     initialVehicle?.id || (allChoices[0]?.id || '')

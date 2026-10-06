@@ -9,6 +9,10 @@ export interface UserProfile {
   role: 'admin' | 'vehicle_owner' | 'renter';
   activeViewMode?: 'admin' | 'vehicle_owner' | 'renter'; // Can use app as customer
   
+  approvalStatus?: 'approved' | 'pending' | 'suspended';
+  suspensionReason?: string;
+  suspendedAt?: string;
+  
   // Owner specific properties (if role === 'vehicle_owner')
   ownerDetails?: {
     upiId?: string;

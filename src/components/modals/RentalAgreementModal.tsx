@@ -111,9 +111,9 @@ export const RentalAgreementModal: React.FC<RentalAgreementModalProps> = ({
         <div className="space-y-4 text-xs font-mono">
           <div className={`flex justify-between border-b pb-3 ${theme === 'light' ? 'border-slate-200' : 'border-neutral-800'}`}>
             <div>
-              <div className={`text-base font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'} print:text-black`}>VAHAANFLOW MOBILITY PLATFORM</div>
+              <div className={`text-base font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'} print:text-black`}>GODRIVE MOBILITY PLATFORM</div>
               <div className={`${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'} print:text-neutral-600`}>GSTIN: 29AABCV1290K1Z5 &middot; CIN: U63090KA2024PTC189201</div>
-              <div className={`${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'} print:text-neutral-600`}>Bengaluru Headquarters &middot; support@vahaanflow.in</div>
+              <div className={`${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'} print:text-neutral-600`}>Bengaluru Headquarters &middot; support@godrive.in</div>
             </div>
             <div className="text-right">
               <div className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'} print:text-black`}>BOOKING: {booking.bookingCode}</div>

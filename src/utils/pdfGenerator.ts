@@ -22,13 +22,13 @@ export function downloadRentalAgreementPdf(booking: Booking): void {
   doc.setTextColor(52, 211, 153); // emerald 400
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('VAHAANFLOW MOBILITY PLATFORM', 18, y + 4);
+  doc.text('GODRIVE MOBILITY PLATFORM', 18, y + 4);
 
   doc.setTextColor(203, 213, 225); // slate 300
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.text('GSTIN: 29AABCV1290K1Z5  |  CIN: U63090KA2024PTC189201', 18, y + 10);
-  doc.text('Bengaluru Headquarters  |  support@vahaanflow.in', 18, y + 15);
+  doc.text('Bengaluru Headquarters  |  support@godrive.in', 18, y + 15);
 
   // Booking reference on top right
   doc.setFont('helvetica', 'bold');
@@ -194,7 +194,7 @@ export function downloadRentalAgreementPdf(booking: Booking): void {
   doc.setFontSize(7.5);
   doc.setTextColor(100, 116, 139);
   doc.text('Customer / Primary Driver', 16, y + 9);
-  doc.text('VahaanFlow Platform Officer', pageWidth - 16, y + 9, { align: 'right' });
+  doc.text('GoDrive Platform Officer', pageWidth - 16, y + 9, { align: 'right' });
 
   // Trigger Instant PDF Download
   doc.save(`Rental_Agreement_${booking.bookingCode}.pdf`);
@@ -248,13 +248,13 @@ export function downloadReturnDossierPdf(booking: Booking): void {
   doc.setTextColor(52, 211, 153); // emerald 400
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('VAHAANFLOW CAR RENTALS', 18, y + 4);
+  doc.text('GODRIVE CAR RENTALS', 18, y + 4);
 
   doc.setTextColor(203, 213, 225);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.text('Car Return Receipt & Deposit Refund Settlement Slip', 18, y + 10);
-  doc.text('support@vahaanflow.in  |  24x7 Roadside Helpline', 18, y + 15);
+  doc.text('support@godrive.in  |  24x7 Roadside Helpline', 18, y + 15);
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);

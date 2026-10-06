@@ -6,23 +6,81 @@ import {
   Lock,
   ShieldAlert,
   Building2,
-  User
+  User,
+  Trash2,
+  AlertTriangle,
+  Clock,
+  ChevronDown
 } from 'lucide-react';
 
 interface AuditLogViewerProps {
   logs: AuditRecord[];
   vehicles: Vehicle[];
+  onClearAuditHistory?: (days: number | 'all') => Promise<void> | void;
   theme?: 'dark' | 'light';
 }
 
-export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, theme = 'dark' }) => {
+export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ 
+  logs, 
+  onClearAuditHistory,
+  theme = 'dark' 
+}) => {
   const [actorRoleFilter, setActorRoleFilter] = useState<'all' | 'admin' | 'owner' | 'renter'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
-  // Counts for the Role Switcher
+  // Clear History Modal & Selector State
+  const [clearDropdownOpen, setClearDropdownOpen] = useState<boolean>(false);
+  const [selectedClearOption, setSelectedClearOption] = useState<15 | 30 | 60 | 'all' | null>(null);
+  const [clearAcknowledged, setClearAcknowledged] = useState<boolean>(false);
+  const [isClearing, setIsClearing] = useState<boolean>(false);
+
+  // Impact calculation for clearing history
+  const impactSummary = useMemo(() => {
+    if (!selectedClearOption) return { count: 0, dateStr: '', label: '' };
+    
+    if (selectedClearOption === 'all') {
+      return {
+        count: logs.length,
+        dateStr: 'All activity records',
+        label: 'All Time'
+      };
+    }
+
+    const cutoff = Date.now() - (selectedClearOption * 24 * 60 * 60 * 1000);
+    const count = logs.filter(l => {
+      const t = new Date(l.timestamp).getTime();
+      return !isNaN(t) && t < cutoff;
+    }).length;
+
+    const date = new Date(cutoff).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+
+    const label = selectedClearOption === 15 
+      ? '15 Days' 
+      : (selectedClearOption === 30 ? '1 Month (30 Days)' : '2 Months (60 Days)');
+
+    return { count, dateStr: date, label };
+  }, [selectedClearOption, logs]);
+
+  const handleExecuteClear = async () => {
+    if (!selectedClearOption || !onClearAuditHistory) return;
+    setIsClearing(true);
+    try {
+      await onClearAuditHistory(selectedClearOption);
+    } catch (err) {
+      console.warn('Error clearing audit history:', err);
+    } finally {
+      setIsClearing(false);
+      setSelectedClearOption(null);
+      setClearAcknowledged(false);
+    }
+  };
   const adminLogsCount = useMemo(() => logs.filter(l => l.actor?.role === 'admin').length, [logs]);
   const ownerLogsCount = useMemo(() => logs.filter(l => l.actor?.role === 'vehicle_owner' || (l.actor?.role as string) === 'owner').length, [logs]);
   const customerLogsCount = useMemo(() => logs.filter(l => l.actor?.role === 'renter' || (l.actor?.role as string) === 'customer').length, [logs]);
@@ -35,7 +93,11 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, theme = 'd
         if (actorRoleFilter === 'owner' && log.actor?.role !== 'vehicle_owner' && (log.actor?.role as string) !== 'owner') return false;
         if (actorRoleFilter === 'renter' && log.actor?.role !== 'renter' && (log.actor?.role as string) !== 'customer') return false;
       }
-      if (selectedCategory !== 'all' && log.category !== selectedCategory) return false;
+      if (selectedCategory !== 'all') {
+        const catNorm = log.category.toLowerCase().replace('_', ' ');
+        const selNorm = selectedCategory.toLowerCase().replace('_', ' ');
+        if (catNorm !== selNorm) return false;
+      }
       if (selectedSeverity !== 'all' && log.severity !== selectedSeverity) return false;
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -59,7 +121,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, theme = 'd
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `VahaanFlow_Activity_History_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `GoDrive_Activity_History_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -86,17 +148,126 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, theme = 'd
           </p>
         </div>
 
-        <button
-          onClick={handleExportCSV}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors self-start sm:self-auto ${
-            theme === 'light'
-              ? 'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200'
-              : 'border-neutral-700 bg-neutral-800 text-neutral-200 hover:bg-neutral-700'
-          }`}
-        >
-          <Download className="h-3.5 w-3.5" />
-          <span>Download History (CSV)</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {/* Export CSV Button */}
+          <button
+            onClick={handleExportCSV}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
+              theme === 'light'
+                ? 'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200'
+                : 'border-neutral-700 bg-neutral-800 text-neutral-200 hover:bg-neutral-700'
+            }`}
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>Export CSV</span>
+          </button>
+
+          {/* Clear History Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setClearDropdownOpen(prev => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
+                theme === 'light'
+                  ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                  : 'border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
+              }`}
+            >
+              <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+              <span>Clear History</span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${clearDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {clearDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-20" 
+                  onClick={() => setClearDropdownOpen(false)} 
+                />
+                <div className={`absolute right-0 mt-1.5 w-64 rounded-xl border shadow-2xl py-1.5 z-30 transition-all text-xs ${
+                  theme === 'light'
+                    ? 'border-slate-200 bg-white text-slate-800 shadow-slate-200/80'
+                    : 'border-neutral-800 bg-neutral-900 text-neutral-100 shadow-black/80'
+                }`}>
+                  <div className={`px-3 py-1.5 font-bold uppercase tracking-wider text-[10px] border-b ${
+                    theme === 'light' ? 'border-slate-100 text-slate-400' : 'border-neutral-800 text-neutral-500'
+                  }`}>
+                    Select Timeframe to Purge
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setClearDropdownOpen(false);
+                      setSelectedClearOption(15);
+                      setClearAcknowledged(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors cursor-pointer ${
+                      theme === 'light' ? 'hover:bg-slate-50' : 'hover:bg-neutral-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-rose-500" />
+                      <span>Older than 15 Days</span>
+                    </div>
+                    <span className="font-mono text-[10px] opacity-60">15d ago</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setClearDropdownOpen(false);
+                      setSelectedClearOption(30);
+                      setClearAcknowledged(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors cursor-pointer ${
+                      theme === 'light' ? 'hover:bg-slate-50' : 'hover:bg-neutral-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-rose-500" />
+                      <span>Older than 1 Month</span>
+                    </div>
+                    <span className="font-mono text-[10px] opacity-60">30d ago</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setClearDropdownOpen(false);
+                      setSelectedClearOption(60);
+                      setClearAcknowledged(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors cursor-pointer ${
+                      theme === 'light' ? 'hover:bg-slate-50' : 'hover:bg-neutral-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-rose-500" />
+                      <span>Older than 2 Months</span>
+                    </div>
+                    <span className="font-mono text-[10px] opacity-60">60d ago</span>
+                  </button>
+
+                  <div className={`my-1 border-t ${theme === 'light' ? 'border-slate-100' : 'border-neutral-800'}`} />
+
+                  <button
+                    onClick={() => {
+                      setClearDropdownOpen(false);
+                      setSelectedClearOption('all');
+                      setClearAcknowledged(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center justify-between font-bold text-rose-600 transition-colors cursor-pointer ${
+                      theme === 'light' ? 'hover:bg-rose-50' : 'hover:bg-rose-500/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                      <span>Clear All History</span>
+                    </div>
+                    <span className="font-mono text-[10px] text-rose-500">All</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Role Switcher Bar on top for organizing changes made by admin / owner / customer */}
@@ -211,6 +382,8 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, theme = 'd
             }`}
           >
             <option value="all">All Activities</option>
+            <option value="maintenance">Servicing & Maintenance</option>
+            <option value="user_access">User Access & Permissions</option>
             <option value="CHECK_OUT">Car Handover</option>
             <option value="CHECK_IN">Car Return & Bill</option>
             <option value="PENALTY">Fines & Waivers</option>
@@ -281,11 +454,34 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, theme = 'd
                         {new Date(log.timestamp).toLocaleString()}
                       </td>
                       <td className="py-3 px-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border uppercase ${
-                          theme === 'light' ? 'bg-slate-100 text-slate-800 border-slate-200' : 'bg-neutral-800 text-neutral-200 border-neutral-700'
-                        }`}>
-                          {log.category.replace('_', ' ')}
-                        </span>
+                        {(() => {
+                          const catLower = log.category.toLowerCase();
+                          if (catLower === 'maintenance') {
+                            return (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${
+                                theme === 'light' ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                              }`}>
+                                Servicing
+                              </span>
+                            );
+                          }
+                          if (catLower === 'user_access' || catLower === 'user access') {
+                            return (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${
+                                theme === 'light' ? 'bg-rose-100 text-rose-900 border-rose-300' : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                              }`}>
+                                User Access
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border uppercase ${
+                              theme === 'light' ? 'bg-slate-100 text-slate-800 border-slate-200' : 'bg-neutral-800 text-neutral-200 border-neutral-700'
+                            }`}>
+                              {log.category.replace('_', ' ')}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="py-3 px-3 font-sans max-w-md">
                         <div className={`font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{log.action}</div>
@@ -366,6 +562,119 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, theme = 'd
           </tbody>
         </table>
       </div>
+
+      {/* Clear History Double Confirmation Modal */}
+      {selectedClearOption && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className={`relative w-full max-w-lg rounded-2xl border p-6 shadow-2xl space-y-5 transition-all duration-300 ${
+            theme === 'light' ? 'border-slate-200 bg-white text-slate-900' : 'border-neutral-800 bg-neutral-900 text-neutral-100'
+          }`}>
+            
+            {/* Modal Header */}
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 shrink-0">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="space-y-0.5">
+                <h3 className={`text-base font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                  Confirm Clearing Activity History
+                </h3>
+                <p className={`text-xs ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Selected Purge Horizon: <strong className="text-rose-500">{impactSummary.label}</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Warning Callout */}
+            <div className={`p-4 rounded-xl border text-xs leading-relaxed space-y-1.5 ${
+              theme === 'light' 
+                ? 'border-rose-200 bg-rose-50 text-rose-950' 
+                : 'border-rose-500/30 bg-rose-500/10 text-rose-200'
+            }`}>
+              <div className="font-bold flex items-center gap-1.5 text-rose-600">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>Critical Administrative Action &middot; Double Confirmation Required</span>
+              </div>
+              <p>
+                You are about to purge activity history logs older than <strong>{impactSummary.label}</strong> {selectedClearOption !== 'all' ? `(prior to ${impactSummary.dateStr})` : ''}.
+              </p>
+              <p className="font-semibold text-rose-600">
+                This will permanently delete <strong>{impactSummary.count}</strong> activity history record(s) from local storage and Cloud Firestore.
+              </p>
+            </div>
+
+            {/* Impact Details */}
+            <div className={`p-3.5 rounded-xl border space-y-2 text-xs font-mono ${
+              theme === 'light' ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-neutral-800 bg-neutral-950/60 text-neutral-300'
+            }`}>
+              <div className="flex justify-between">
+                <span className={theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}>Total Logs in Storage:</span>
+                <span className="font-bold">{logs.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className={theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}>Records to be Deleted:</span>
+                <span className="text-rose-500 font-bold">{impactSummary.count}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className={theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}>Records Retained:</span>
+                <span className="text-emerald-600 font-bold">{Math.max(0, logs.length - impactSummary.count)}</span>
+              </div>
+            </div>
+
+            {/* Explicit Double-Confirm Checkbox */}
+            <div className="space-y-1.5">
+              <label className={`flex items-start gap-2.5 p-3.5 rounded-xl border cursor-pointer select-none transition-all ${
+                clearAcknowledged
+                  ? (theme === 'light' ? 'border-rose-400 bg-rose-50 ring-2 ring-rose-400/20' : 'border-rose-500/50 bg-rose-500/15 ring-2 ring-rose-500/20')
+                  : (theme === 'light' ? 'border-slate-200 bg-slate-50 hover:bg-slate-100' : 'border-neutral-800 bg-neutral-950/40 hover:bg-neutral-900')
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={clearAcknowledged}
+                  onChange={e => setClearAcknowledged(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500 h-4 w-4 cursor-pointer"
+                />
+                <span className={`text-xs ${theme === 'light' ? 'text-slate-800' : 'text-neutral-200'}`}>
+                  <strong>I confirm that I want to permanently clear these activity history records.</strong> I understand this action cannot be undone.
+                </span>
+              </label>
+
+              {!clearAcknowledged && (
+                <p className="text-[11px] text-amber-500 font-medium px-1 flex items-center gap-1">
+                  <span>ℹ️</span> Please check the confirmation box above to enable the purge button.
+                </p>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className={`flex items-center justify-end gap-3 pt-3 border-t ${theme === 'light' ? 'border-slate-200' : 'border-neutral-800'}`}>
+              <button
+                type="button"
+                onClick={() => setSelectedClearOption(null)}
+                disabled={isClearing}
+                className={`px-4 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                  theme === 'light'
+                    ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                    : 'border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                }`}
+              >
+                Keep History
+              </button>
+              
+              <button
+                type="button"
+                disabled={!clearAcknowledged || isClearing || impactSummary.count === 0}
+                onClick={handleExecuteClear}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs shadow-lg transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>{isClearing ? 'Clearing...' : `Yes, Clear ${impactSummary.count} Record(s)`}</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

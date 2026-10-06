@@ -304,6 +304,17 @@ export class AuthService {
     }
   }
 
+  static saveUserToLocal(user: UserProfile): void {
+    const list = this.getUsers();
+    const idx = list.findIndex(u => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
+    if (idx >= 0) {
+      list[idx] = user;
+    } else {
+      list.push(user);
+    }
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(list));
+  }
+
   static async syncUserProfileToFirestore(user: UserProfile): Promise<void> {
     try {
       await setDoc(doc(db, 'users', user.id), user, { merge: true });
@@ -335,6 +346,30 @@ export class AuthService {
       }
     }
 
+    if (!userDoc) {
+      return { 
+        success: false, 
+        error: 'Email does not exist. Please create an account.' 
+      };
+    }
+
+    // CRITICAL: Block suspended users immediately BEFORE Firebase Auth sign-in or password check
+    const isSuspended = userDoc.approvalStatus === 'suspended' || userDoc.ownerDetails?.approvalStatus === 'suspended';
+    if (isSuspended) {
+      const reason = userDoc.suspensionReason || 'Account suspended by platform administrator.';
+      return {
+        success: false,
+        error: `Your account has been suspended by the admin. Reason: ${reason}. Please contact support to restore access.`
+      };
+    }
+
+    if (userDoc.password && userDoc.password !== password) {
+      return { 
+        success: false, 
+        error: 'Incorrect password. Click "Forgot Password?" to reset your credentials.' 
+      };
+    }
+
     // 3. Attempt Firebase Authentication (keeps Firebase Auth as authoritative source)
     let fbUser: FirebaseUser | null = null;
     try {
@@ -350,20 +385,6 @@ export class AuthService {
           // Dev / offline fallback nominal
         }
       }
-    }
-
-    if (!userDoc) {
-      return { 
-        success: false, 
-        error: 'Email does not exist. Please create an account.' 
-      };
-    }
-
-    if (userDoc.password && userDoc.password !== password) {
-      return { 
-        success: false, 
-        error: 'Incorrect password. Click "Forgot Password?" to reset your credentials.' 
-      };
     }
 
     // Keep auth.uid linked

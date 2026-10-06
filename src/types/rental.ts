@@ -248,7 +248,7 @@ export interface PlatformSettings {
 export interface AuditRecord {
   id: string;
   timestamp: string;
-  category: 'VEHICLE' | 'BOOKING' | 'CHECK_OUT' | 'CHECK_IN' | 'PENALTY' | 'PAYOUT' | 'KYC' | 'DISPUTE';
+  category: 'VEHICLE' | 'BOOKING' | 'CHECK_OUT' | 'CHECK_IN' | 'PENALTY' | 'PAYOUT' | 'KYC' | 'DISPUTE' | 'MAINTENANCE' | 'USER_ACCESS' | 'maintenance' | 'user access';
   action: string;
   summary: string;
   actor: {

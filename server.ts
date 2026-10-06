@@ -29,7 +29,7 @@ app.use(express.json());
 // Nodemailer Gmail Transporter Configuration
 const SMTP_USER = process.env.SMTP_USER || 'tanmayrajaura28@gmail.com';
 const SMTP_PASS = (process.env.SMTP_PASS || 'awkw exnj ijew bkru').replace(/\s+/g, '');
-const SENDER_NAME = process.env.SENDER_NAME || 'vahaanflowos';
+const SENDER_NAME = process.env.SENDER_NAME || 'godrive';
 const SENDER_EMAIL = `"${SENDER_NAME}" <${SMTP_USER}>`;
 
 export const transporter = nodemailer.createTransport({
@@ -91,8 +91,8 @@ app.post('/api/auth/send-welcome-email', async (req: Request, res: Response) => 
     const isOwner = role === 'vehicle_owner';
     const roleTitle = isOwner ? 'Car Owner' : 'Customer (Rent a Car)';
     const subject = isOwner 
-      ? `Welcome to VahaanFlow - Your Car Owner Account is Active!` 
-      : `Welcome to VahaanFlow - Ready to Rent & Drive!`;
+      ? `Welcome to GoDrive - Your Car Owner Account is Active!` 
+      : `Welcome to GoDrive - Ready to Rent & Drive!`;
 
     const html = `
       <!DOCTYPE html>
@@ -118,7 +118,7 @@ app.post('/api/auth/send-welcome-email', async (req: Request, res: Response) => 
       <body>
         <div class="container">
           <div class="header">
-            <h1>व VahaanFlow</h1>
+            <h1>G GoDrive</h1>
             <p>Smart Car Rental & Fleet Operations</p>
           </div>
           <div class="content">

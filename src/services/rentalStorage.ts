@@ -292,6 +292,47 @@ export class RentalStorageService {
     return newRecord;
   }
 
+  static async clearAuditLogsOlderThan(days: number): Promise<number> {
+    const logs = this.getAuditLogs();
+    const cutoffMs = Date.now() - (days * 24 * 60 * 60 * 1000);
+    const logsToKeep: AuditRecord[] = [];
+    const logsToRemove: AuditRecord[] = [];
+
+    logs.forEach(l => {
+      const logTime = new Date(l.timestamp).getTime();
+      if (!isNaN(logTime) && logTime < cutoffMs) {
+        logsToRemove.push(l);
+      } else {
+        logsToKeep.push(l);
+      }
+    });
+
+    localStorage.setItem(STORAGE_KEYS.AUDIT, JSON.stringify(logsToKeep));
+
+    for (const l of logsToRemove) {
+      try {
+        await deleteDoc(doc(db, 'auditLogs', l.id));
+      } catch (e) {
+        console.warn(`Failed to delete audit log ${l.id} from Firestore:`, e);
+      }
+    }
+
+    return logsToRemove.length;
+  }
+
+  static async clearAllAuditLogs(): Promise<number> {
+    const logs = this.getAuditLogs();
+    localStorage.setItem(STORAGE_KEYS.AUDIT, JSON.stringify([]));
+    for (const l of logs) {
+      try {
+        await deleteDoc(doc(db, 'auditLogs', l.id));
+      } catch (e) {
+        console.warn(`Failed to delete audit log ${l.id} from Firestore:`, e);
+      }
+    }
+    return logs.length;
+  }
+
   // --- PAYOUTS ---
   static getPayouts(): PayoutRecord[] {
     try {

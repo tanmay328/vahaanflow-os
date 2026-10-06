@@ -1,6 +1,6 @@
 {
-  "name": "vehicle rental system",
-  "description": "Enterprise vehicle rental system for managing bookings, live fleet availability tracking, vehicle inspections, and complete audit records.",
+  "name": "GoDrive",
+  "description": "Enterprise GoDrive vehicle rental system for managing bookings, live fleet availability tracking, vehicle inspections, and complete audit records.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

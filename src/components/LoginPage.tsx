@@ -26,19 +26,21 @@ interface LoginPageProps {
   onLoginSuccess: (user: UserProfile) => void;
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
+  initialError?: string;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ 
   onLoginSuccess, 
   theme = 'dark',
   onToggleTheme,
+  initialError,
 }) => {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
   // Sign In state
   const [signInEmail, setSignInEmail] = useState<string>('');
   const [signInPassword, setSignInPassword] = useState<string>('');
-  const [signInError, setSignInError] = useState<string | null>(null);
+  const [signInError, setSignInError] = useState<string | null>(initialError || null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Password visibility toggles
@@ -305,12 +307,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       }`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-bold text-lg">
-              व
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-extrabold text-lg">
+              G
             </div>
             <div>
-              <span className={`text-base font-bold tracking-tight block leading-none ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                VahaanFlow
+              <span className={`text-base font-extrabold tracking-tight block leading-none ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                GoDrive
               </span>
               <span className={`text-[10px] font-mono ${theme === 'dark' ? 'text-neutral-400' : 'text-slate-500'}`}>
                 Smart Car Rental & Fleet Platform
@@ -1231,7 +1233,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         theme === 'light' ? 'border-slate-200 bg-white/80 text-slate-500' : 'border-neutral-800/80 bg-neutral-950/60 text-neutral-500'
       }`}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>VahaanFlow &middot; Simple Vehicle Rental & Fleet System for India</span>
+          <span>GoDrive &middot; Simple Vehicle Rental & Fleet System for India</span>
           <span className="font-mono text-[11px]">Strict Data Privacy & Safe Payouts</span>
         </div>
       </footer>

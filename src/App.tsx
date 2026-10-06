@@ -21,6 +21,7 @@ import { OwnerEarningsView } from './components/OwnerEarningsView';
 import { AdminPayoutsDisputes } from './components/AdminPayoutsDisputes';
 import { AuditLogViewer } from './components/AuditLogViewer';
 import { MaintenanceLedger } from './components/MaintenanceLedger';
+import { UserAccessControl } from './components/UserAccessControl';
 import { LoginPage } from './components/LoginPage';
 
 // Modals
@@ -40,7 +41,19 @@ export default function App() {
   const [allUsers, setAllUsers] = useState<UserProfile[]>(() => AuthService.getUsers());
 
   // Navigation tab
-  const [activeTab, setActiveTab] = useState<'fleet' | 'bookings' | 'earnings' | 'payouts' | 'audit' | 'maintenance'>('fleet');
+  const [activeTab, setActiveTab] = useState<'fleet' | 'bookings' | 'earnings' | 'payouts' | 'audit' | 'maintenance' | 'user_access'>('fleet');
+
+  // Sidebar Collapsed state (persisted in localStorage)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('vahaanflow_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Suspension error for login
+  const [suspensionError, setSuspensionError] = useState<string | null>(null);
 
   // Core Data State
   const [vehicles, setVehicles] = useState<Vehicle[]>(() => RentalStorageService.getVehicles());
@@ -118,11 +131,23 @@ export default function App() {
 
     const unsubUsers = AuthService.initFirestoreUsersSync((users) => {
       setAllUsers(users);
-      // Keep currentUser refreshed
+      // Keep currentUser refreshed & check for real-time suspension
       const current = AuthService.getCurrentUser();
       if (current) {
-        const found = users.find(u => u.id === current.id);
-        if (found) setCurrentUser(found);
+        const found = users.find(u => u.id === current.id || u.email.toLowerCase() === current.email.toLowerCase());
+        if (found) {
+          const isSuspended = found.approvalStatus === 'suspended' || found.ownerDetails?.approvalStatus === 'suspended';
+          if (isSuspended && found.role !== 'admin') {
+            const reason = found.suspensionReason || 'Account suspended by administrator.';
+            const errorMsg = `Your account has been suspended by the admin. Reason: ${reason}. Please contact support to restore access.`;
+            setSuspensionError(errorMsg);
+            showToast('Account Suspended', errorMsg, 'warning');
+            AuthService.logout();
+            setCurrentUser(null);
+            return;
+          }
+          setCurrentUser(found);
+        }
       }
     });
 
@@ -171,6 +196,90 @@ export default function App() {
     } else {
       showToast('Returned to Dashboard', `Back to ${currentUser.role === 'admin' ? 'Admin' : 'Car Owner'} dashboard.`, 'success');
     }
+  };
+
+  // USER ACCESS CONTROL OPERATIONS
+  const handleSuspendUser = async (userId: string, reason: string) => {
+    const target = allUsers.find(u => u.id === userId);
+    if (!target) return;
+
+    if (target.role === 'admin' || target.email.toLowerCase() === 'tanmayrajaura28@gmail.com') {
+      showToast('Action Prohibited', 'Admin accounts cannot be suspended.', 'warning');
+      return;
+    }
+
+    const suspendedAt = new Date().toISOString();
+    const updatedUser: UserProfile = {
+      ...target,
+      approvalStatus: 'suspended',
+      suspensionReason: reason,
+      suspendedAt,
+      ownerDetails: target.ownerDetails ? {
+        ...target.ownerDetails,
+        approvalStatus: 'suspended',
+      } : undefined,
+    };
+
+    setAllUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+    AuthService.saveUserToLocal(updatedUser);
+    await AuthService.syncUserProfileToFirestore(updatedUser);
+
+    // Record every suspend action in Activity History (category "user access", with the reason)
+    await RentalStorageService.logAudit({
+      category: 'user access',
+      action: 'User Account Suspended',
+      summary: `Account ${target.name} (${target.email}) was suspended by Admin. Reason: "${reason}".`,
+      actor: {
+        id: currentUser?.id || 'admin',
+        name: currentUser?.name || 'Admin',
+        role: 'admin',
+      },
+      severity: 'warning',
+    });
+
+    if (currentUser?.id === userId) {
+      const errorMsg = `Your account has been suspended by the admin. Reason: ${reason}. Please contact support to restore access.`;
+      setSuspensionError(errorMsg);
+      await AuthService.logout();
+      setCurrentUser(null);
+    }
+
+    showToast('User Suspended', `${target.name} account suspended.`, 'info');
+  };
+
+  const handleReactivateUser = async (userId: string) => {
+    const target = allUsers.find(u => u.id === userId);
+    if (!target) return;
+
+    const updatedUser: UserProfile = {
+      ...target,
+      approvalStatus: 'approved',
+      suspensionReason: undefined,
+      suspendedAt: undefined,
+      ownerDetails: target.ownerDetails ? {
+        ...target.ownerDetails,
+        approvalStatus: 'approved',
+      } : undefined,
+    };
+
+    setAllUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+    AuthService.saveUserToLocal(updatedUser);
+    await AuthService.syncUserProfileToFirestore(updatedUser);
+
+    // Record every reactivate action in Activity History
+    await RentalStorageService.logAudit({
+      category: 'user access',
+      action: 'User Account Reactivated',
+      summary: `Account ${target.name} (${target.email}) was reactivated by Admin.`,
+      actor: {
+        id: currentUser?.id || 'admin',
+        name: currentUser?.name || 'Admin',
+        role: 'admin',
+      },
+      severity: 'notice',
+    });
+
+    showToast('User Reactivated', `Access restored for ${target.name}.`, 'success');
   };
 
   // VEHICLE OPERATIONS
@@ -755,6 +864,7 @@ export default function App() {
         onLoginSuccess={handleLoginSuccess}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        initialError={suspensionError || undefined}
       />
     );
   }
@@ -773,7 +883,7 @@ export default function App() {
         : 'bg-slate-50 text-slate-900 light'
     }`}>
       
-      {/* Top Bar */}
+      {/* Top Bar & Sidebar (Wrapping main content in a unified layout) */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -789,22 +899,20 @@ export default function App() {
         }}
         onLogout={handleLogout}
         onToggleNormalUserMode={handleToggleNormalUserMode}
-        isDemoPulseActive={isDemoPulseActive}
-        setIsDemoPulseActive={setIsDemoPulseActive}
         auditCount={auditLogs.length}
         onDeleteUser={handleDeleteUser}
         theme={theme}
         onToggleTheme={handleToggleTheme}
-      />
-
-      {/* Main Workspace */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
+        isSidebarCollapsed={isSidebarCollapsed}
+        setIsSidebarCollapsed={setIsSidebarCollapsed}
+      >
         <ErrorBoundary fallbackTitle="Could not load this dashboard tab">
           {/* TAB 1: FLEET OVERVIEW */}
           {activeTab === 'fleet' && (
             <FleetOverview
               vehicles={vehicles}
               currentUser={currentUser}
+              allUsers={allUsers}
               theme={theme}
               onSelectVehicle={(veh) => {
                 setEditingVehicleTarget(veh);
@@ -900,12 +1008,28 @@ export default function App() {
             />
           )}
 
-          {/* TAB 5: AUDIT LOG (Strictly Read-Only) */}
+          {/* TAB 5: AUDIT LOG (Activity History) */}
           {activeTab === 'audit' && currentUser.role === 'admin' && (
             <AuditLogViewer
               logs={auditLogs}
               vehicles={vehicles}
               theme={theme}
+              onClearAuditHistory={async (days) => {
+                let count = 0;
+                if (days === 'all') {
+                  count = await RentalStorageService.clearAllAuditLogs();
+                  setAuditLogs([]);
+                } else {
+                  count = await RentalStorageService.clearAuditLogsOlderThan(days);
+                  const cutoffMs = Date.now() - (days * 24 * 60 * 60 * 1000);
+                  setAuditLogs(prev => prev.filter(l => {
+                    const t = new Date(l.timestamp).getTime();
+                    return !isNaN(t) && t >= cutoffMs;
+                  }));
+                }
+                const timeframeLabel = days === 'all' ? 'all history' : (days === 15 ? '15 days' : (days === 30 ? '1 month' : '2 months'));
+                showToast('Activity History Cleared', `Purged ${count} activity log record(s) older than ${timeframeLabel}.`, 'info');
+              }}
             />
           )}
 
@@ -915,32 +1039,84 @@ export default function App() {
               maintenanceLogs={maintenance}
               vehicles={vehicles}
               theme={theme}
-              onAddLog={(m) => {
-                RentalStorageService.saveMaintenance(m);
+              onAddLog={async (m) => {
+                await RentalStorageService.saveMaintenance(m);
+                setMaintenance(prev => [...prev, m]);
+                const vehicle = vehicles.find(v => v.id === m.vehicleId);
+                await RentalStorageService.logAudit({
+                  category: 'maintenance',
+                  action: 'Servicing Scheduled',
+                  summary: `Servicing logged for ${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'} (${m.vehiclePlate}). Type: ${m.serviceType}, Workshop: ${m.workshopName}, Cost: ₹${m.cost}.`,
+                  actor: {
+                    id: currentUser.id,
+                    name: currentUser.name,
+                    role: currentUser.role,
+                  },
+                  vehiclePlate: m.vehiclePlate,
+                  severity: 'info',
+                });
                 showToast('Work Order Created', `Scheduled ${m.serviceType}.`, 'success');
               }}
-              onCompleteLog={(mId) => {
+              onCompleteLog={async (mId) => {
                 const m = maintenance.find(item => item.id === mId);
                 if (m) {
-                  const updated = { ...m, status: 'completed' as const };
-                  RentalStorageService.saveMaintenance(updated);
+                  const updated = { ...m, status: 'completed' as const, completionDate: new Date().toISOString().split('T')[0] };
+                  await RentalStorageService.saveMaintenance(updated);
                   setMaintenance(prev => prev.map(item => item.id === mId ? updated : item));
+                  const vehicle = vehicles.find(v => v.id === m.vehicleId);
+                  await RentalStorageService.logAudit({
+                    category: 'maintenance',
+                    action: 'Servicing Completed',
+                    summary: `Servicing completed for ${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'} (${m.vehiclePlate}). Type: ${m.serviceType}, Workshop: ${m.workshopName}. Vehicle returned to available status.`,
+                    actor: {
+                      id: currentUser.id,
+                      name: currentUser.name,
+                      role: currentUser.role,
+                    },
+                    vehiclePlate: m.vehiclePlate,
+                    severity: 'info',
+                  });
                   showToast('Service Completed', 'Vehicle returned to service ready.', 'success');
                 }
               }}
-              onRevertLog={(mId) => {
+              onRevertLog={async (mId) => {
                 const m = maintenance.find(item => item.id === mId);
                 if (m) {
                   const updated = { ...m, status: 'in_progress' as const };
-                  RentalStorageService.saveMaintenance(updated);
+                  await RentalStorageService.saveMaintenance(updated);
                   setMaintenance(prev => prev.map(item => item.id === mId ? updated : item));
+                  const vehicle = vehicles.find(v => v.id === m.vehicleId);
+                  await RentalStorageService.logAudit({
+                    category: 'maintenance',
+                    action: 'Servicing Reopened',
+                    summary: `Servicing reopened / moved back to In Workshop status for ${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'} (${m.vehiclePlate}).`,
+                    actor: {
+                      id: currentUser.id,
+                      name: currentUser.name,
+                      role: currentUser.role,
+                    },
+                    vehiclePlate: m.vehiclePlate,
+                    severity: 'notice',
+                  });
                   showToast('Action Undone', 'Vehicle moved back to In Workshop status.', 'info');
                 }
               }}
             />
           )}
+
+          {/* TAB 7: USER ACCESS CONTROL (Admin Only) */}
+          {activeTab === 'user_access' && currentUser.role === 'admin' && (
+            <UserAccessControl
+              users={allUsers}
+              vehicles={vehicles}
+              bookings={bookings}
+              onSuspendUser={handleSuspendUser}
+              onReactivateUser={handleReactivateUser}
+              theme={theme}
+            />
+          )}
         </ErrorBoundary>
-      </main>
+      </Navbar>
 
       {/* Modals Container */}
       {vehicleFormOpen && (
@@ -963,6 +1139,7 @@ export default function App() {
           vehicles={vehicles}
           initialVehicle={preselectedVehicleForBooking}
           currentUser={currentUser}
+          allUsers={allUsers}
           theme={theme}
           onClose={() => {
             setNewBookingModalOpen(false);

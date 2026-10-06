@@ -120,7 +120,7 @@ export const ReturnDossierModal: React.FC<ReturnDossierModalProps> = ({
         <div className="space-y-4 text-xs font-mono">
           <div className={`flex justify-between border-b pb-3 ${theme === 'light' ? 'border-slate-200' : 'border-neutral-800'}`}>
             <div>
-              <div className={`text-base font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'} print:text-black`}>VAHAANFLOW CAR RENTALS</div>
+              <div className={`text-base font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'} print:text-black`}>GODRIVE CAR RENTALS</div>
               <div className={`${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'} print:text-neutral-600`}>Car Return Receipt & Deposit Refund Slip</div>
             </div>
             <div className="text-right">
