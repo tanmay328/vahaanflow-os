@@ -46,7 +46,9 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
   theme = 'dark',
 }) => {
   const isAdmin = currentUser.role === 'admin';
-  const isNormalUserMode = currentUser.activeViewMode === 'renter';
+  // Customers (role 'renter') are always in customer mode; owners/admins can also switch into it via "Browse as Customer"
+  const isNormalUserMode =
+    currentUser.role === 'renter' || currentUser.activeViewMode === 'renter';
   const isOwner = currentUser.role === 'vehicle_owner' && !isNormalUserMode;
 
   const [selectedStatus, setSelectedStatus] = useState<string>('all');

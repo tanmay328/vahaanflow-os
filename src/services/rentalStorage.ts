@@ -5,25 +5,19 @@ import {
   MaintenanceLog, 
   PayoutRecord, 
   DisputeRecord, 
-  PlatformSettings,
-  PenaltyItem
+  PlatformSettings
 } from '../types/rental';
-import { 
-  INITIAL_VEHICLES, 
-  INITIAL_BOOKINGS, 
-  INITIAL_AUDIT_LOGS, 
-  INITIAL_MAINTENANCE,
-  INITIAL_PAYOUTS,
-  INITIAL_DISPUTES,
-  DEFAULT_PLATFORM_SETTINGS
-} from '../data/mockData';
-import { db } from './firebase';
+import { DEFAULT_PLATFORM_SETTINGS } from '../data/mockData';
+import { db, auth } from './firebase';
 import { 
   collection, 
   doc, 
   setDoc, 
   deleteDoc, 
-  onSnapshot
+  onSnapshot,
+  query,
+  where,
+  getDocs
 } from 'firebase/firestore';
 
 const STORAGE_KEYS = {
@@ -55,120 +49,173 @@ function cleanForFirestore<T>(obj: T): any {
 }
 
 export class RentalStorageService {
-  // Sync all collections from Firestore in real-time
-  static initFirestoreSync(callbacks: {
-    onVehicles: (v: Vehicle[]) => void;
-    onBookings: (b: Booking[]) => void;
-    onAuditLogs: (a: AuditRecord[]) => void;
-    onMaintenance: (m: MaintenanceLog[]) => void;
-    onPayouts?: (p: PayoutRecord[]) => void;
-    onDisputes?: (d: DisputeRecord[]) => void;
-  }): () => void {
+  // Sync platform settings in real-time
+  static initSettingsSync(onSettingsUpdate: (settings: PlatformSettings) => void): () => void {
+    try {
+      const docRef = doc(db, 'settings', 'platform_config');
+      const unsub = onSnapshot(docRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() as PlatformSettings;
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(data));
+          onSettingsUpdate(data);
+        } else {
+          onSettingsUpdate(DEFAULT_PLATFORM_SETTINGS);
+        }
+      }, (err) => {
+        console.warn('Settings snapshot notice:', err);
+      });
+      return unsub;
+    } catch (e) {
+      console.warn('Settings sync error:', e);
+      return () => {};
+    }
+  }
+
+  // Role-aware sync matching Firestore Security Rules
+  static initFirestoreSync(
+    role: 'admin' | 'vehicle_owner' | 'renter',
+    uid: string,
+    callbacks: {
+      onVehicles: (v: Vehicle[]) => void;
+      onBookings: (b: Booking[]) => void;
+      onAuditLogs?: (a: AuditRecord[]) => void;
+      onMaintenance?: (m: MaintenanceLog[]) => void;
+      onPayouts?: (p: PayoutRecord[]) => void;
+      onDisputes?: (d: DisputeRecord[]) => void;
+    }
+  ): () => void {
     const unsubs: (() => void)[] = [];
 
     try {
       // 1. Vehicles
+      let vehQuery;
+      if (role === 'admin') {
+        vehQuery = collection(db, 'vehicles');
+      } else if (role === 'vehicle_owner') {
+        vehQuery = query(collection(db, 'vehicles'), where('ownerId', '==', uid));
+      } else {
+        vehQuery = query(collection(db, 'vehicles'), where('approvalStatus', '==', 'approved'));
+      }
+
       unsubs.push(
-        onSnapshot(collection(db, 'vehicles'), (snap) => {
-          if (!snap.empty) {
-            const list: Vehicle[] = [];
-            snap.forEach((d) => {
-              const v = d.data() as Vehicle;
-              if (!v.status) v.status = 'available';
-              if (!v.approvalStatus) v.approvalStatus = 'approved';
-              const seedMatch = INITIAL_VEHICLES.find(iv => iv.id === v.id);
-              if (seedMatch) {
-                v.image = seedMatch.image;
-              } else if (v.image && v.image.startsWith('/src/assets/images/')) {
-                v.image = v.image.replace('/src/assets/images/', '/images/');
-              }
-              list.push(v);
-            });
-            localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(list));
-            callbacks.onVehicles(list);
-          } else {
-            // Seed initial
-            INITIAL_VEHICLES.forEach(v => {
-              v.status = 'available';
-              v.approvalStatus = 'approved';
-              setDoc(doc(db, 'vehicles', v.id), v).catch(console.warn);
-            });
-          }
-        }, err => console.warn('Vehicles snapshot error:', err))
+        onSnapshot(vehQuery, (snap) => {
+          const list: Vehicle[] = [];
+          snap.forEach((d) => {
+            const v = d.data() as Vehicle;
+            v.id = d.id;
+            if (!v.status) v.status = 'available';
+            if (!v.approvalStatus) v.approvalStatus = 'approved';
+            if (v.image && v.image.startsWith('/src/assets/images/')) {
+              v.image = v.image.replace('/src/assets/images/', '/images/');
+            }
+            list.push(v);
+          });
+          localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(list));
+          callbacks.onVehicles(list);
+        }, err => console.warn('Vehicles snapshot notice:', err))
       );
 
       // 2. Bookings
+      let bookingsQuery;
+      if (role === 'admin') {
+        bookingsQuery = collection(db, 'bookings');
+      } else if (role === 'vehicle_owner') {
+        bookingsQuery = query(collection(db, 'bookings'), where('ownerId', '==', uid));
+      } else {
+        bookingsQuery = query(collection(db, 'bookings'), where('customerId', '==', uid));
+      }
+
       unsubs.push(
-        onSnapshot(collection(db, 'bookings'), (snap) => {
-          if (!snap.empty) {
-            const list: Booking[] = [];
-            snap.forEach((d) => list.push(d.data() as Booking));
-            localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(list));
-            callbacks.onBookings(list);
-          } else {
-            INITIAL_BOOKINGS.forEach(b => setDoc(doc(db, 'bookings', b.id), b).catch(console.warn));
-          }
-        }, err => console.warn('Bookings snapshot error:', err))
+        onSnapshot(bookingsQuery, (snap) => {
+          const list: Booking[] = [];
+          snap.forEach((d) => {
+            const b = d.data() as Booking;
+            b.id = d.id;
+            list.push(b);
+          });
+          localStorage.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(list));
+          callbacks.onBookings(list);
+        }, err => console.warn('Bookings snapshot notice:', err))
       );
 
-      // 3. Audit Logs (Immutable)
-      unsubs.push(
-        onSnapshot(collection(db, 'auditLogs'), (snap) => {
-          if (!snap.empty) {
+      // 3. Audit Logs (Admin only)
+      if (role === 'admin' && callbacks.onAuditLogs) {
+        unsubs.push(
+          onSnapshot(collection(db, 'auditLogs'), (snap) => {
             const list: AuditRecord[] = [];
-            snap.forEach((d) => list.push(d.data() as AuditRecord));
+            snap.forEach((d) => {
+              const a = d.data() as AuditRecord;
+              a.id = d.id;
+              list.push(a);
+            });
             list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
             localStorage.setItem(STORAGE_KEYS.AUDIT, JSON.stringify(list));
-            callbacks.onAuditLogs(list);
-          } else {
-            INITIAL_AUDIT_LOGS.forEach(a => setDoc(doc(db, 'auditLogs', a.id), a).catch(console.warn));
-          }
-        }, err => console.warn('Audit snapshot error:', err))
-      );
-
-      // 4. Maintenance
-      unsubs.push(
-        onSnapshot(collection(db, 'maintenance'), (snap) => {
-          if (!snap.empty) {
-            const list: MaintenanceLog[] = [];
-            snap.forEach((d) => list.push(d.data() as MaintenanceLog));
-            localStorage.setItem(STORAGE_KEYS.MAINTENANCE, JSON.stringify(list));
-            callbacks.onMaintenance(list);
-          } else {
-            INITIAL_MAINTENANCE.forEach(m => setDoc(doc(db, 'maintenance', m.id), m).catch(console.warn));
-          }
-        }, err => console.warn('Maintenance snapshot error:', err))
-      );
-
-      // 5. Payouts
-      if (callbacks.onPayouts) {
-        unsubs.push(
-          onSnapshot(collection(db, 'payouts'), (snap) => {
-            if (!snap.empty) {
-              const list: PayoutRecord[] = [];
-              snap.forEach((d) => list.push(d.data() as PayoutRecord));
-              localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(list));
-              callbacks.onPayouts?.(list);
-            } else {
-              INITIAL_PAYOUTS.forEach(p => setDoc(doc(db, 'payouts', p.id), p).catch(console.warn));
-            }
-          }, err => console.warn('Payouts snapshot error:', err))
+            callbacks.onAuditLogs?.(list);
+          }, err => console.warn('Audit snapshot notice:', err))
         );
       }
 
-      // 6. Disputes
-      if (callbacks.onDisputes) {
+      // 4. Maintenance (Admin only)
+      if (role === 'admin' && callbacks.onMaintenance) {
         unsubs.push(
-          onSnapshot(collection(db, 'disputes'), (snap) => {
-            if (!snap.empty) {
-              const list: DisputeRecord[] = [];
-              snap.forEach((d) => list.push(d.data() as DisputeRecord));
-              localStorage.setItem(STORAGE_KEYS.DISPUTES, JSON.stringify(list));
-              callbacks.onDisputes?.(list);
-            } else {
-              INITIAL_DISPUTES.forEach(disp => setDoc(doc(db, 'disputes', disp.id), disp).catch(console.warn));
-            }
-          }, err => console.warn('Disputes snapshot error:', err))
+          onSnapshot(collection(db, 'maintenance'), (snap) => {
+            const list: MaintenanceLog[] = [];
+            snap.forEach((d) => {
+              const m = d.data() as MaintenanceLog;
+              m.id = d.id;
+              list.push(m);
+            });
+            localStorage.setItem(STORAGE_KEYS.MAINTENANCE, JSON.stringify(list));
+            callbacks.onMaintenance?.(list);
+          }, err => console.warn('Maintenance snapshot notice:', err))
+        );
+      }
+
+      // 5. Payouts (Admin reads all, Owner reads own)
+      if (callbacks.onPayouts) {
+        let payoutsQuery = null;
+        if (role === 'admin') {
+          payoutsQuery = collection(db, 'payouts');
+        } else if (role === 'vehicle_owner') {
+          payoutsQuery = query(collection(db, 'payouts'), where('ownerId', '==', uid));
+        }
+
+        if (payoutsQuery) {
+          unsubs.push(
+            onSnapshot(payoutsQuery, (snap) => {
+              const list: PayoutRecord[] = [];
+              snap.forEach((d) => {
+                const p = d.data() as PayoutRecord;
+                p.id = d.id;
+                list.push(p);
+              });
+              localStorage.setItem(STORAGE_KEYS.PAYOUTS, JSON.stringify(list));
+              callbacks.onPayouts?.(list);
+            }, err => console.warn('Payouts snapshot notice:', err))
+          );
+        }
+      }
+
+      // 6. Disputes (Admin reads all, others read own)
+      if (callbacks.onDisputes) {
+        let disputesQuery;
+        if (role === 'admin') {
+          disputesQuery = collection(db, 'disputes');
+        } else {
+          disputesQuery = query(collection(db, 'disputes'), where('reporterId', '==', uid));
+        }
+
+        unsubs.push(
+          onSnapshot(disputesQuery, (snap) => {
+            const list: DisputeRecord[] = [];
+            snap.forEach((d) => {
+              const disp = d.data() as DisputeRecord;
+              disp.id = d.id;
+              list.push(disp);
+            });
+            localStorage.setItem(STORAGE_KEYS.DISPUTES, JSON.stringify(list));
+            callbacks.onDisputes?.(list);
+          }, err => console.warn('Disputes snapshot notice:', err))
         );
       }
 
@@ -185,28 +232,9 @@ export class RentalStorageService {
   static getVehicles(): Vehicle[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.VEHICLES);
-      const list: Vehicle[] = data ? JSON.parse(data) : [...INITIAL_VEHICLES];
-      const existingIds = new Set(list.map(v => v.id));
-      for (const seed of INITIAL_VEHICLES) {
-        if (!existingIds.has(seed.id)) {
-          list.push(seed);
-        } else {
-          const match = list.find(v => v.id === seed.id);
-          if (match) match.image = seed.image;
-        }
-      }
-      list.forEach(v => {
-        // Only fill in missing values - never overwrite a status the admin has set
-        if (!v.status) v.status = 'available';
-        if (!v.approvalStatus) v.approvalStatus = 'approved';
-        if (v.image && v.image.startsWith('/src/assets/images/')) {
-          v.image = v.image.replace('/src/assets/images/', '/images/');
-        }
-      });
-      localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(list));
-      return list;
+      return data ? JSON.parse(data) : [];
     } catch {
-      return INITIAL_VEHICLES.map(v => ({ ...v, status: 'available', approvalStatus: 'approved' }));
+      return [];
     }
   }
 
@@ -223,6 +251,7 @@ export class RentalStorageService {
       await setDoc(doc(db, 'vehicles', vehicle.id), cleanForFirestore(vehicle), { merge: true });
     } catch (e) {
       console.warn('Vehicle Firestore save error:', e);
+      throw e;
     }
   }
 
@@ -233,6 +262,22 @@ export class RentalStorageService {
       await deleteDoc(doc(db, 'vehicles', id));
     } catch (e) {
       console.warn('Vehicle Firestore delete error:', e);
+      throw e;
+    }
+  }
+
+  // Admin action: update owner suspension state on vehicles
+  static async setOwnerVehiclesSuspended(ownerId: string, suspended: boolean): Promise<void> {
+    try {
+      const q = query(collection(db, 'vehicles'), where('ownerId', '==', ownerId));
+      const snap = await getDocs(q);
+      const promises: Promise<void>[] = [];
+      snap.forEach((d) => {
+        promises.push(setDoc(doc(db, 'vehicles', d.id), { ownerSuspended: suspended }, { merge: true }));
+      });
+      await Promise.all(promises);
+    } catch (err) {
+      console.warn('Error updating ownerSuspended on vehicles:', err);
     }
   }
 
@@ -240,9 +285,9 @@ export class RentalStorageService {
   static getBookings(): Booking[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.BOOKINGS);
-      return data ? JSON.parse(data) : INITIAL_BOOKINGS;
+      return data ? JSON.parse(data) : [];
     } catch {
-      return INITIAL_BOOKINGS;
+      return [];
     }
   }
 
@@ -259,35 +304,40 @@ export class RentalStorageService {
       await setDoc(doc(db, 'bookings', booking.id), cleanForFirestore(booking), { merge: true });
     } catch (e) {
       console.warn('Booking Firestore save error:', e);
+      throw e;
     }
   }
 
-  // --- AUDIT LOGS (Strictly Immutable, append-only) ---
+  // --- AUDIT LOGS (Immutable, actorId = uid) ---
   static getAuditLogs(): AuditRecord[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.AUDIT);
-      return data ? JSON.parse(data) : INITIAL_AUDIT_LOGS;
+      return data ? JSON.parse(data) : [];
     } catch {
-      return INITIAL_AUDIT_LOGS;
+      return [];
     }
   }
 
   static async logAudit(record: Omit<AuditRecord, 'id' | 'timestamp'>): Promise<AuditRecord> {
+    const currentUid = auth.currentUser?.uid || record.actor.id;
     const newRecord: AuditRecord = {
       ...record,
       id: `aud-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: new Date().toISOString(),
+      actor: {
+        ...record.actor,
+        id: currentUid,
+      },
     };
 
     const list = this.getAuditLogs();
     list.unshift(newRecord);
     localStorage.setItem(STORAGE_KEYS.AUDIT, JSON.stringify(list));
 
-    // Append to Firestore (immutable per security rules)
     try {
       await setDoc(doc(db, 'auditLogs', newRecord.id), cleanForFirestore(newRecord));
     } catch (e) {
-      console.warn('Audit log write error:', e);
+      console.warn('Audit log write notice:', e);
     }
     return newRecord;
   }
@@ -337,9 +387,9 @@ export class RentalStorageService {
   static getPayouts(): PayoutRecord[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.PAYOUTS);
-      return data ? JSON.parse(data) : INITIAL_PAYOUTS;
+      return data ? JSON.parse(data) : [];
     } catch {
-      return INITIAL_PAYOUTS;
+      return [];
     }
   }
 
@@ -356,6 +406,7 @@ export class RentalStorageService {
       await setDoc(doc(db, 'payouts', payout.id), cleanForFirestore(payout), { merge: true });
     } catch (e) {
       console.warn('Payout Firestore save error:', e);
+      throw e;
     }
   }
 
@@ -363,18 +414,9 @@ export class RentalStorageService {
   static getDisputes(): DisputeRecord[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.DISPUTES);
-      if (!data) return INITIAL_DISPUTES;
-      const stored: DisputeRecord[] = JSON.parse(data);
-      const storedIds = new Set(stored.map(d => d.id));
-      const merged = [...stored];
-      INITIAL_DISPUTES.forEach(init => {
-        if (!storedIds.has(init.id)) {
-          merged.push(init);
-        }
-      });
-      return merged;
+      return data ? JSON.parse(data) : [];
     } catch {
-      return INITIAL_DISPUTES;
+      return [];
     }
   }
 
@@ -391,6 +433,7 @@ export class RentalStorageService {
       await setDoc(doc(db, 'disputes', dispute.id), cleanForFirestore(dispute), { merge: true });
     } catch (e) {
       console.warn('Dispute Firestore save error:', e);
+      throw e;
     }
   }
 
@@ -398,9 +441,9 @@ export class RentalStorageService {
   static getMaintenanceLogs(): MaintenanceLog[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.MAINTENANCE);
-      return data ? JSON.parse(data) : INITIAL_MAINTENANCE;
+      return data ? JSON.parse(data) : [];
     } catch {
-      return INITIAL_MAINTENANCE;
+      return [];
     }
   }
 
@@ -417,6 +460,7 @@ export class RentalStorageService {
       await setDoc(doc(db, 'maintenance', maint.id), cleanForFirestore(maint), { merge: true });
     } catch (e) {
       console.warn('Maintenance Firestore save error:', e);
+      throw e;
     }
   }
 
@@ -436,6 +480,7 @@ export class RentalStorageService {
       await setDoc(doc(db, 'settings', 'platform_config'), cleanForFirestore(settings), { merge: true });
     } catch (e) {
       console.warn('Settings Firestore save error:', e);
+      throw e;
     }
   }
 }

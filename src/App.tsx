@@ -906,7 +906,8 @@ export default function App() {
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
       >
-        <ErrorBoundary fallbackTitle="Could not load this dashboard tab">
+        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-6">
+          <ErrorBoundary fallbackTitle="Could not load this dashboard tab">
           {/* TAB 1: FLEET OVERVIEW */}
           {activeTab === 'fleet' && (
             <FleetOverview
@@ -1116,7 +1117,8 @@ export default function App() {
             />
           )}
         </ErrorBoundary>
-      </Navbar>
+      </main>
+    </Navbar>
 
       {/* Modals Container */}
       {vehicleFormOpen && (

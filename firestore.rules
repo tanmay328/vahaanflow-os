@@ -2,54 +2,177 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users collection
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'admin';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. Users collection
+    // users/{uid}: a user can read and update only their own document; admin can read, update and delete any.
+    // On create, uid must equal request.auth.uid, role must be "vehicle_owner" or "renter" (never "admin"), and approvalStatus must not be "suspended".
+    // A non-admin user must NOT be able to change role, approvalStatus, suspensionReason, or ownerDetails.approvalStatus.
     match /users/{userId} {
-      allow read, write: if true;
+      allow read: if isOwner(userId) || isAdmin();
+      
+      allow create: if isSignedIn() 
+        && request.auth.uid == userId
+        && request.resource.data.id == userId
+        && (request.resource.data.role == 'vehicle_owner' || request.resource.data.role == 'renter')
+        && request.resource.data.approvalStatus != 'suspended';
+
+      allow update: if isAdmin() || (
+        isOwner(userId)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.approvalStatus == resource.data.approvalStatus
+        && (!('suspensionReason' in request.resource.data) || request.resource.data.suspensionReason == resource.data.suspensionReason)
+        && (
+          !('ownerDetails' in resource.data) 
+          || !('ownerDetails' in request.resource.data) 
+          || request.resource.data.ownerDetails.approvalStatus == resource.data.ownerDetails.approvalStatus
+        )
+      );
+
+      allow delete: if isAdmin();
     }
 
-    // Vehicles collection
+    // 2. Vehicles collection
+    // Read: signed-in user can read if approvalStatus == "approved" and ownerSuspended != true, or if they own it, or if they are admin.
+    // Create: Owners can create vehicles only with ownerId == their uid and approvalStatus == "pending_approval"
+    // Update: Owners can update only their own vehicles without changing approvalStatus or ownerId. 
+    // Narrow status update: signed-in renters can update status from 'available' to 'booked' during booking.
+    // Admin can do everything.
     match /vehicles/{vehicleId} {
-      allow read, write: if true;
+      allow read: if isSignedIn() && (
+        isAdmin()
+        || resource.data.ownerId == request.auth.uid
+        || (resource.data.approvalStatus == 'approved' && (!('ownerSuspended' in resource.data) || resource.data.ownerSuspended != true))
+      );
+
+      allow create: if isAdmin() || (
+        isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.approvalStatus == 'pending_approval'
+      );
+
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.approvalStatus == resource.data.approvalStatus
+      ) || (
+        isSignedIn()
+        && resource.data.status == 'available'
+        && request.resource.data.status == 'booked'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+      );
+
+      allow delete: if isAdmin() || (
+        isSignedIn() && resource.data.ownerId == request.auth.uid
+      );
     }
 
-    // Bookings collection
+    // 3. Bookings collection
+    // Customer can create booking with their own uid as customerId and read their own.
+    // Owner can read bookings for their own cars and update only owner approval fields.
+    // Admin can read and write all.
     match /bookings/{bookingId} {
-      allow read, write: if true;
+      allow read: if isSignedIn() && (
+        isAdmin()
+        || resource.data.customerId == request.auth.uid
+        || resource.data.ownerId == request.auth.uid
+      );
+
+      allow create: if isSignedIn() && (
+        isAdmin()
+        || request.resource.data.customerId == request.auth.uid
+      );
+
+      allow update: if isAdmin() || (
+        isSignedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerApprovalStatus', 'ownerApprovalNotes'])
+      ) || (
+        isSignedIn()
+        && resource.data.customerId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancellationReason', 'cancelledAt', 'cancelledBy'])
+      );
+
+      allow delete: if isAdmin();
     }
 
-    // Audit logs - platform activity record
-    match /auditLogs/{auditId} {
-      allow read, write: if true;
-    }
-
-    // Maintenance
-    match /maintenance/{maintId} {
-      allow read, write: if true;
-    }
-
-    // Owner Payouts
+    // 4. Payouts collection
+    // Owner can read only their own; only admin can update or delete.
+    // Creation allowed for signed-in booking flow or admin.
     match /payouts/{payoutId} {
-      allow read, write: if true;
+      allow read: if isSignedIn() && (
+        isAdmin()
+        || resource.data.ownerId == request.auth.uid
+      );
+
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
 
-    // Disputes
+    // 5. Disputes collection
+    // Any signed-in user can create a dispute for themselves (reporterId == request.auth.uid) and read their own.
+    // Only admin can update (resolve) or delete.
     match /disputes/{disputeId} {
-      allow read, write: if true;
+      allow read: if isSignedIn() && (
+        isAdmin()
+        || resource.data.reporterId == request.auth.uid
+      );
+
+      allow create: if isSignedIn() && (
+        isAdmin()
+        || request.resource.data.reporterId == request.auth.uid
+      );
+
+      allow update, delete: if isAdmin();
     }
 
-    // Platform Settings
+    // 6. Audit Logs collection
+    // Signed-in users can create entries where the actor.id equals their uid.
+    // Only admin can read all; nobody can update; only admin can delete.
+    match /auditLogs/{auditId} {
+      allow read: if isAdmin();
+      
+      allow create: if isSignedIn() && (
+        isAdmin()
+        || request.resource.data.actor.id == request.auth.uid
+      );
+
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // 7. Maintenance collection
+    // Admin read and write only.
+    match /maintenance/{maintId} {
+      allow read, write: if isAdmin();
+    }
+
+    // 8. Platform Settings collection
+    // Settings readable by any signed-in user; admin write.
     match /settings/{docId} {
-      allow read, write: if true;
-    }
-
-    // Password resets tokens
-    match /passwordResets/{resetId} {
-      allow read, write: if true;
-    }
-
-    // Test connection endpoint
-    match /test/{docId} {
-      allow read, write: if true;
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

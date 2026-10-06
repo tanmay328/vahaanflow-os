@@ -5,7 +5,6 @@ export interface UserProfile {
   name: string;
   email: string;
   phone: string;
-  password?: string;
   role: 'admin' | 'vehicle_owner' | 'renter';
   activeViewMode?: 'admin' | 'vehicle_owner' | 'renter'; // Can use app as customer
   

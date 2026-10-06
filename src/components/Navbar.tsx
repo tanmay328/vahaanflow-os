@@ -496,7 +496,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         )}
 
         {/* Main Workspace container next to Sidebar */}
-        <div className={`flex-1 min-w-0 ${animClass}`}>
+        <div className={`flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-6 ${animClass}`}>
           {children}
         </div>
       </div>

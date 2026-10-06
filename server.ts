@@ -1,93 +1,134 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import nodemailer from 'nodemailer';
-import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import admin from 'firebase-admin';
+import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Initialize Firebase Admin SDK if not already initialized
+if (!admin.apps.length) {
+  admin.initializeApp({
+    projectId: firebaseConfig.projectId,
+  });
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// In-Memory Secure Reset Token Store (1-hour TTL)
-interface ResetTokenRecord {
-  token: string;
-  code: string;
-  email: string;
-  expiresAt: number;
-  used: boolean;
-}
-const resetTokensStore = new Map<string, ResetTokenRecord>();
 
 // Middleware for parsing JSON requests
 app.use(express.json());
 
-// Nodemailer Gmail Transporter Configuration
-const SMTP_USER = process.env.SMTP_USER || 'tanmayrajaura28@gmail.com';
-const SMTP_PASS = (process.env.SMTP_PASS || 'awkw exnj ijew bkru').replace(/\s+/g, '');
-const SENDER_NAME = process.env.SENDER_NAME || 'godrive';
-const SENDER_EMAIL = `"${SENDER_NAME}" <${SMTP_USER}>`;
+// SMTP Configuration from process.env ONLY
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS ? process.env.SMTP_PASS.replace(/\s+/g, '') : undefined;
+const SENDER_NAME = process.env.SENDER_NAME || 'GoDrive';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const APP_URL = process.env.APP_URL || '';
 
-export const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // true for 465, false for other ports
-  auth: {
-    user: SMTP_USER,
-    pass: SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+const isEmailConfigured = Boolean(SMTP_USER && SMTP_PASS);
 
-// Verify SMTP connection on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Nodemailer transporter connection error:', error);
-  } else {
-    console.log(`✅ Nodemailer connected successfully to Gmail [${SMTP_USER}] as "${SENDER_NAME}"`);
-  }
-});
+if (!isEmailConfigured) {
+  console.warn('⚠️ SMTP_USER or SMTP_PASS is missing in environment variables. Email sending is disabled (503 Service Unavailable).');
+}
 
-// 1. Generic Send Email API
-app.post('/api/send-email', async (req: Request, res: Response) => {
-  try {
-    const { to, subject, html, text } = req.body;
-    if (!to || !subject) {
-      return res.status(400).json({ success: false, error: 'Recipient "to" and "subject" are required.' });
+export const transporter = isEmailConfigured
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+    })
+  : null;
+
+if (transporter && SMTP_USER) {
+  transporter.verify((error) => {
+    if (error) {
+      console.warn('⚠️ Nodemailer SMTP verification notice:', error.message);
+    } else {
+      console.log(`✅ Nodemailer connected successfully to SMTP as "${SENDER_NAME}"`);
     }
+  });
+}
 
-    const mailOptions = {
-      from: SENDER_EMAIL,
-      to,
-      subject,
-      text: text || '',
-      html: html || `<p>${text || subject}</p>`,
-    };
+// Authentication Middleware via Firebase ID Token
+export interface AuthenticatedRequest extends Request {
+  user?: admin.auth.DecodedIdToken;
+}
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`📧 Email sent to ${to}: ${info.messageId}`);
-    return res.json({ success: true, messageId: info.messageId });
+async function authenticateFirebaseToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Missing or invalid authorization token.' });
+  }
+
+  const token = authHeader.split('Bearer ')[1].trim();
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Empty token provided.' });
+  }
+
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    req.user = decodedToken;
+    next();
   } catch (error: any) {
-    console.error('❌ Error sending generic email:', error);
-    return res.status(500).json({ success: false, error: error.message || 'Failed to send email' });
+    console.warn('❌ Firebase ID token verification failed:', error.message);
+    return res.status(401).json({ success: false, error: 'Unauthorized: Invalid or expired token.' });
   }
-});
+}
 
-// 2. Welcome Email API (For Car Owners & Customers)
-app.post('/api/auth/send-welcome-email', async (req: Request, res: Response) => {
+// In-Memory Rate Limiter (10 requests per minute per user/IP)
+interface RateLimitRecord {
+  count: number;
+  resetAt: number;
+}
+const rateLimitMap = new Map<string, RateLimitRecord>();
+
+function emailRateLimiter(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const key = req.user?.uid || req.ip || 'anonymous';
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxRequests = 10;
+
+  const current = rateLimitMap.get(key);
+  if (!current || now > current.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
+    return next();
+  }
+
+  if (current.count >= maxRequests) {
+    return res.status(429).json({ success: false, error: 'Too many email requests. Please try again later.' });
+  }
+
+  current.count++;
+  next();
+}
+
+function checkEmailConfig(req: Request, res: Response, next: NextFunction) {
+  if (!transporter || !SMTP_USER) {
+    return res.status(503).json({ success: false, error: 'Email is not configured' });
+  }
+  next();
+}
+
+// 1. Welcome Email API (For Car Owners & Customers - recipient fixed to verified user email)
+app.post('/api/auth/send-welcome-email', authenticateFirebaseToken, checkEmailConfig, emailRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { email, name, role, phone, upiId, drivingLicense } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Email is required' });
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(400).json({ success: false, error: 'Authenticated user email not found.' });
     }
 
+    const { name, role, phone, upiId, drivingLicense } = req.body;
     const isOwner = role === 'vehicle_owner';
     const roleTitle = isOwner ? 'Car Owner' : 'Customer (Rent a Car)';
     const subject = isOwner 
@@ -118,7 +159,7 @@ app.post('/api/auth/send-welcome-email', async (req: Request, res: Response) => 
       <body>
         <div class="container">
           <div class="header">
-            <h1>G GoDrive</h1>
+            <h1>GoDrive</h1>
             <p>Smart Car Rental & Fleet Operations</p>
           </div>
           <div class="content">
@@ -134,7 +175,7 @@ app.post('/api/auth/send-welcome-email', async (req: Request, res: Response) => 
               </div>
               <div class="field-row">
                 <span class="field-label">Registered Email:</span>
-                <span class="field-val">${email}</span>
+                <span class="field-val">${userEmail}</span>
               </div>
               ${phone ? `
               <div class="field-row">
@@ -155,7 +196,7 @@ app.post('/api/auth/send-welcome-email', async (req: Request, res: Response) => 
 
             ${isOwner ? `
             <p style="color: #a3a3a3; font-size: 13px; line-height: 1.5;">
-              🚗 <strong>Next Steps:</strong> You can now add your cars to your fleet, set your daily pricing, block dates for personal use, and track your daily bookings & bank payouts.
+              🚗 <strong>Next Steps:</strong> You can now add your cars to your fleet, set your daily pricing, and track your daily bookings & bank payouts.
             </p>
             ` : `
             <p style="color: #a3a3a3; font-size: 13px; line-height: 1.5;">
@@ -164,26 +205,24 @@ app.post('/api/auth/send-welcome-email', async (req: Request, res: Response) => 
             `}
 
             <div style="text-align: center; margin-top: 24px;">
-              <a href="https://vahaanflow.in" class="btn">Open VahaanFlow Dashboard</a>
+              <a href="${APP_URL || '#'}" class="btn">Open GoDrive Dashboard</a>
             </div>
           </div>
           <div class="footer">
-            Sent with ❤️ by <strong>${SENDER_NAME}</strong><br>
-            Official Support: tanmayrajaura28@gmail.com
+            Sent by <strong>${SENDER_NAME}</strong>
           </div>
         </div>
       </body>
       </html>
     `;
 
-    const info = await transporter.sendMail({
-      from: SENDER_EMAIL,
-      to: email,
+    const info = await transporter!.sendMail({
+      from: `"${SENDER_NAME}" <${SMTP_USER}>`,
+      to: userEmail,
       subject,
       html,
     });
 
-    console.log(`✅ Welcome email sent to ${email} (messageId: ${info.messageId})`);
     return res.json({ success: true, messageId: info.messageId });
   } catch (error: any) {
     console.error('❌ Error sending welcome email:', error);
@@ -191,15 +230,16 @@ app.post('/api/auth/send-welcome-email', async (req: Request, res: Response) => 
   }
 });
 
-// 3. Password Updated Confirmation Email API (No raw password leaked in email)
-app.post('/api/auth/send-password-updated-email', async (req: Request, res: Response) => {
+// 2. Password Updated Confirmation Email API (recipient fixed to verified user email)
+app.post('/api/auth/send-password-updated-email', authenticateFirebaseToken, checkEmailConfig, emailRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { email, userName } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Email is required' });
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(400).json({ success: false, error: 'Authenticated user email not found.' });
     }
 
-    const subject = `Your VahaanFlow Password Has Been Successfully Updated`;
+    const { userName } = req.body;
+    const subject = `Your GoDrive Password Has Been Successfully Updated`;
     const html = `
       <!DOCTYPE html>
       <html>
@@ -218,7 +258,7 @@ app.post('/api/auth/send-password-updated-email', async (req: Request, res: Resp
       <body>
         <div class="container">
           <div class="header">
-            <h2 style="margin:0;">VahaanFlow Security Alert</h2>
+            <h2 style="margin:0; color:#ffffff;">GoDrive Security Alert</h2>
           </div>
           <div class="content">
             <h3 style="color:#ffffff; margin-top:0;">Hello ${userName || 'Valued User'},</h3>
@@ -226,34 +266,33 @@ app.post('/api/auth/send-password-updated-email', async (req: Request, res: Resp
               ✅ Password Successfully Updated
             </div>
             <p style="color:#d4d4d4; font-size:13px; line-height:1.6;">
-              Your account password for <strong>${email}</strong> was recently updated to your new customized password.
+              Your account password for <strong>${userEmail}</strong> was recently updated.
             </p>
             <p style="color:#a3a3a3; font-size:12px; line-height:1.5;">
-              You can now sign in to VahaanFlow using your new customized password anytime.
+              You can now sign in to GoDrive using your new password.
             </p>
             <div style="text-align: center; margin: 18px 0;">
-              <a href="https://vahaanflow.in" class="btn">Sign In to VahaanFlow</a>
+              <a href="${APP_URL || '#'}" class="btn">Sign In to GoDrive</a>
             </div>
-            <p style="color:#737373; font-size:11px; margin-top: 18px; border-top: 1px solid #262626; pt: 12px;">
-              🛡️ <em>Security Notice: If you did not make this change, please contact support immediately at tanmayrajaura28@gmail.com.</em>
+            <p style="color:#737373; font-size:11px; margin-top: 18px; border-top: 1px solid #262626; padding-top: 12px;">
+              🛡️ <em>Security Notice: If you did not make this change, please reset your password immediately.</em>
             </p>
           </div>
           <div class="footer">
-            Sent by <strong>${SENDER_NAME}</strong> (tanmayrajaura28@gmail.com)
+            Sent by <strong>${SENDER_NAME}</strong>
           </div>
         </div>
       </body>
       </html>
     `;
 
-    const info = await transporter.sendMail({
-      from: SENDER_EMAIL,
-      to: email,
+    const info = await transporter!.sendMail({
+      from: `"${SENDER_NAME}" <${SMTP_USER}>`,
+      to: userEmail,
       subject,
       html,
     });
 
-    console.log(`✅ Password updated confirmation email sent to ${email}`);
     return res.json({ success: true, messageId: info.messageId });
   } catch (error: any) {
     console.error('❌ Error sending password update confirmation email:', error);
@@ -261,165 +300,20 @@ app.post('/api/auth/send-password-updated-email', async (req: Request, res: Resp
   }
 });
 
-// 3b. Send Password Reset Link & Code Email
-app.post('/api/auth/send-reset-link', async (req: Request, res: Response) => {
-  try {
-    const { email, origin } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Email is required' });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-    const token = crypto.randomUUID().replace(/-/g, '') + Date.now().toString(36);
-    const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit verification OTP
-    const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour validity
-
-    const tokenRecord: ResetTokenRecord = {
-      token,
-      code,
-      email: cleanEmail,
-      expiresAt,
-      used: false,
-    };
-
-    resetTokensStore.set(token, tokenRecord);
-    resetTokensStore.set(code, tokenRecord);
-
-    // Compute public accessible base URL (avoids internal aistudio.google.com 403 error)
-    let baseUrl = 'https://ais-pre-k2zjwm3ysduz62wq3ftvfz-950987348502.asia-east1.run.app';
-    if (process.env.APP_URL && !process.env.APP_URL.includes('MY_APP_URL') && !process.env.APP_URL.includes('aistudio.google.com')) {
-      baseUrl = process.env.APP_URL;
-    } else if (origin && !origin.includes('aistudio.google.com')) {
-      baseUrl = origin;
-    }
-
-    const resetLink = `${baseUrl}/?reset_token=${token}&email=${encodeURIComponent(cleanEmail)}`;
-
-    const subject = `Your VahaanFlow Password Reset Code: ${code}`;
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0a0a0a; color: #e5e5e5; margin: 0; padding: 20px; }
-          .container { max-width: 540px; margin: 0 auto; background-color: #171717; border-radius: 16px; border: 1px solid #262626; overflow: hidden; }
-          .header { background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding: 28px 24px; text-align: center; color: #ffffff; }
-          .content { padding: 28px 24px; }
-          .otp-box { background-color: #09090b; border: 2px solid #10b981; border-radius: 14px; padding: 24px; text-align: center; margin: 22px 0; }
-          .otp-code { font-size: 40px; font-weight: 800; color: #34d399; letter-spacing: 12px; font-family: monospace; }
-          .step-box { background-color: #262626; border-radius: 10px; padding: 14px; margin: 18px 0; font-size: 12px; color: #d4d4d4; }
-          .footer { padding: 18px 24px; text-align: center; font-size: 11px; color: #737373; border-top: 1px solid #262626; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="margin:0; font-size:22px;">🔑 VahaanFlow Password Reset</h1>
-            <p style="margin:6px 0 0 0; font-size:13px; opacity:0.9;">Secure Verification Code</p>
-          </div>
-          <div class="content">
-            <h3 style="color:#ffffff; margin-top:0;">Hello,</h3>
-            <p style="color:#d4d4d4; font-size:13px; line-height:1.6;">
-              We received a request to reset the password for your VahaanFlow account (<strong>${cleanEmail}</strong>).
-            </p>
-
-            <!-- 6-Digit OTP Code -->
-            <div class="otp-box">
-              <div style="font-size: 11px; color: #94a3b8; font-weight: bold; letter-spacing: 2px; margin-bottom: 8px;">YOUR 6-DIGIT VERIFICATION CODE</div>
-              <div class="otp-code">${code}</div>
-              <div style="font-size: 12px; color: #cbd5e1; margin-top: 12px; font-weight: 500;">
-                Valid for 60 minutes
-              </div>
-            </div>
-
-            <!-- Simple Steps -->
-            <div class="step-box">
-              <strong>How to reset your password:</strong>
-              <ol style="margin: 8px 0 0 0; padding-left: 18px; line-height: 1.6;">
-                <li>Return to your open <strong>VahaanFlow</strong> window</li>
-                <li>Enter the <strong>6-digit code</strong> shown above</li>
-                <li>Create and confirm your <strong>New Customized Password</strong></li>
-                <li>Click <strong>Set New Password</strong> to login</li>
-              </ol>
-            </div>
-
-            <p style="color:#737373; font-size:11px; margin-top:16px; border-top:1px solid #262626; padding-top:12px;">
-              🛡️ If you did not request this password reset, you can safely ignore this email. Your account remains completely secure.
-            </p>
-          </div>
-          <div class="footer">
-            Sent by <strong>${SENDER_NAME}</strong> (tanmayrajaura28@gmail.com)
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const info = await transporter.sendMail({
-      from: SENDER_EMAIL,
-      to: cleanEmail,
-      subject,
-      html,
-    });
-
-    console.log(`✅ Secure password reset code [${code}] & link sent to ${cleanEmail}`);
-    return res.json({ success: true, messageId: info.messageId });
-  } catch (error: any) {
-    console.error('❌ Error sending reset link email:', error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// 3c. Verify token or 6-digit code validity
-app.post('/api/auth/verify-reset-token', (req: Request, res: Response) => {
-  const { token, code, email } = req.body;
-  const lookupKey = token || code;
-  if (!lookupKey) {
-    return res.status(400).json({ valid: false, error: 'Verification token or 6-digit code is required' });
-  }
-
-  const record = resetTokensStore.get(lookupKey.toString().trim());
-  if (!record) {
-    return res.status(404).json({ valid: false, error: 'Invalid or expired password reset code / link.' });
-  }
-  if (record.used) {
-    return res.status(400).json({ valid: false, error: 'This reset code / link has already been used.' });
-  }
-  if (Date.now() > record.expiresAt) {
-    resetTokensStore.delete(record.token);
-    resetTokensStore.delete(record.code);
-    return res.status(400).json({ valid: false, error: 'This reset code / link has expired. Please request a new one.' });
-  }
-  if (email && record.email.toLowerCase() !== email.trim().toLowerCase()) {
-    return res.status(400).json({ valid: false, error: 'Email mismatch for this reset code / link.' });
-  }
-
-  return res.json({ valid: true, email: record.email, token: record.token });
-});
-
-// 3d. Invalidate token after successful reset
-app.post('/api/auth/invalidate-reset-token', (req: Request, res: Response) => {
-  const { token, code } = req.body;
-  const lookupKey = token || code;
-  if (lookupKey && resetTokensStore.has(lookupKey.toString().trim())) {
-    const record = resetTokensStore.get(lookupKey.toString().trim())!;
-    record.used = true;
-    resetTokensStore.set(record.token, record);
-    resetTokensStore.set(record.code, record);
-  }
-  return res.json({ success: true });
-});
-
-// 4. Booking Confirmation Email API
-app.post('/api/bookings/send-confirmation-email', async (req: Request, res: Response) => {
+// 3. Booking Confirmation Email API (recipient is verified customer email on booking)
+app.post('/api/bookings/send-confirmation-email', authenticateFirebaseToken, checkEmailConfig, emailRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { booking, vehicle } = req.body;
-    if (!booking || !booking.customer?.email) {
-      return res.status(400).json({ success: false, error: 'Booking and customer email required' });
+    if (!booking) {
+      return res.status(400).json({ success: false, error: 'Booking details required.' });
     }
 
-    const customerEmail = booking.customer.email;
+    // Recipient is the authenticated user's email or the booking customer email if matching
+    const recipientEmail = req.user?.email || booking.customer?.email;
+    if (!recipientEmail) {
+      return res.status(400).json({ success: false, error: 'Recipient email not available.' });
+    }
+
     const subject = `Booking Confirmed: ${booking.bookingCode} - ${vehicle?.make || 'Car'} ${vehicle?.model || ''}`;
 
     const html = `
@@ -446,8 +340,8 @@ app.post('/api/bookings/send-confirmation-email', async (req: Request, res: Resp
             <p style="margin:4px 0 0 0; font-size:13px;">Code: <strong>${booking.bookingCode}</strong></p>
           </div>
           <div class="content">
-            <h3 style="color:#ffffff; margin-top:0;">Dear ${booking.customer.name},</h3>
-            <p style="color:#d4d4d4; font-size:13px;">Your car booking has been confirmed with VahaanFlow. Details below:</p>
+            <h3 style="color:#ffffff; margin-top:0;">Dear ${booking.customer?.name || 'Customer'},</h3>
+            <p style="color:#d4d4d4; font-size:13px;">Your car booking has been confirmed with GoDrive. Details below:</p>
 
             <div class="card">
               <div class="row">
@@ -460,11 +354,11 @@ app.post('/api/bookings/send-confirmation-email', async (req: Request, res: Resp
               </div>
               <div class="row">
                 <span class="label">Start Date:</span>
-                <span class="val">${new Date(booking.startDate).toLocaleString('en-IN')}</span>
+                <span class="val">${booking.startDate ? new Date(booking.startDate).toLocaleString('en-IN') : 'N/A'}</span>
               </div>
               <div class="row">
                 <span class="label">End Date:</span>
-                <span class="val">${new Date(booking.endDate).toLocaleString('en-IN')}</span>
+                <span class="val">${booking.endDate ? new Date(booking.endDate).toLocaleString('en-IN') : 'N/A'}</span>
               </div>
               <div class="row">
                 <span class="label">Estimated Total:</span>
@@ -481,21 +375,20 @@ app.post('/api/bookings/send-confirmation-email', async (req: Request, res: Resp
             </p>
           </div>
           <div class="footer">
-            Sent by <strong>${SENDER_NAME}</strong> (tanmayrajaura28@gmail.com)
+            Sent by <strong>${SENDER_NAME}</strong>
           </div>
         </div>
       </body>
       </html>
     `;
 
-    const info = await transporter.sendMail({
-      from: SENDER_EMAIL,
-      to: customerEmail,
+    const info = await transporter!.sendMail({
+      from: `"${SENDER_NAME}" <${SMTP_USER}>`,
+      to: recipientEmail,
       subject,
       html,
     });
 
-    console.log(`✅ Booking confirmation email sent for ${booking.bookingCode} to ${customerEmail}`);
     return res.json({ success: true, messageId: info.messageId });
   } catch (error: any) {
     console.error('❌ Error sending booking confirmation email:', error);
@@ -503,13 +396,16 @@ app.post('/api/bookings/send-confirmation-email', async (req: Request, res: Resp
   }
 });
 
-// 5. Admin Activity Notification API (Sends instant alerts to tanmayrajaura28@gmail.com for owner/customer actions)
-app.post('/api/admin/notify-activity', async (req: Request, res: Response) => {
+// 4. Admin Activity Notification API (recipient decided by server: ADMIN_EMAIL from process.env)
+app.post('/api/admin/notify-activity', authenticateFirebaseToken, checkEmailConfig, emailRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { eventTitle, actorName, actorRole, actorEmail, detailsHtml, summaryText } = req.body;
-    const adminEmail = 'tanmayrajaura28@gmail.com';
+    if (!ADMIN_EMAIL) {
+      console.warn('⚠️ ADMIN_EMAIL is not configured in environment variables.');
+      return res.status(503).json({ success: false, error: 'Admin email recipient is not configured.' });
+    }
 
-    const subject = `[VahaanFlow Alert] ${eventTitle} - ${actorName || 'User'}`;
+    const { eventTitle, actorName, actorRole, actorEmail, detailsHtml, summaryText } = req.body;
+    const subject = `[GoDrive Alert] ${eventTitle || 'Platform Event'} - ${actorName || 'User'}`;
     const html = `
       <!DOCTYPE html>
       <html>
@@ -519,7 +415,7 @@ app.post('/api/admin/notify-activity', async (req: Request, res: Response) => {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5; margin: 0; padding: 20px; }
           .container { max-width: 600px; margin: 0 auto; background-color: #171717; border-radius: 16px; border: 1px solid #262626; overflow: hidden; }
           .header { background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding: 24px; text-align: center; color: #ffffff; }
-          .header h2 { margin: 0; font-size: 20px; font-weight: 800; }
+          .header h2 { margin: 0; font-size: 20px; font-weight: 800; color: #ffffff; }
           .content { padding: 24px; }
           .alert-box { background-color: #262626; border-radius: 12px; padding: 18px; margin: 16px 0; border: 1px solid #404040; }
           .field-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
@@ -531,17 +427,17 @@ app.post('/api/admin/notify-activity', async (req: Request, res: Response) => {
       <body>
         <div class="container">
           <div class="header">
-            <h2>🛡️ VahaanFlow Admin Alert</h2>
+            <h2>🛡️ GoDrive Admin Alert</h2>
             <p style="margin:4px 0 0 0; font-size:12px; opacity:0.9;">Platform Operations & Activity Log</p>
           </div>
           <div class="content">
-            <h3 style="color: #34d399; margin-top: 0; font-size: 16px;">${eventTitle}</h3>
-            <p style="color: #d4d4d4; font-size: 13px;">An important action was performed on the platform:</p>
+            <h3 style="color: #34d399; margin-top: 0; font-size: 16px;">${eventTitle || 'Activity Logged'}</h3>
+            <p style="color: #d4d4d4; font-size: 13px;">An action was performed on the platform:</p>
             
             <div class="alert-box">
               <div class="field-row">
                 <span class="field-label">Action By:</span>
-                <span class="field-val">${actorName || 'User'} (${actorEmail || 'N/A'})</span>
+                <span class="field-val">${actorName || 'User'} (${actorEmail || req.user?.email || 'N/A'})</span>
               </div>
               <div class="field-row">
                 <span class="field-label">Role:</span>
@@ -551,25 +447,22 @@ app.post('/api/admin/notify-activity', async (req: Request, res: Response) => {
                 ${detailsHtml || summaryText || 'Activity logged on platform.'}
               </div>
             </div>
-
-            <p style="color: #737373; font-size: 11px;">Admin Recipient: tanmayrajaura28@gmail.com</p>
           </div>
           <div class="footer">
-            VahaanFlow Admin Notification System &middot; tanmayrajaura28@gmail.com
+            GoDrive Admin Notification System
           </div>
         </div>
       </body>
       </html>
     `;
 
-    const info = await transporter.sendMail({
-      from: SENDER_EMAIL,
-      to: adminEmail,
+    const info = await transporter!.sendMail({
+      from: `"${SENDER_NAME}" <${SMTP_USER}>`,
+      to: ADMIN_EMAIL,
       subject,
       html,
     });
 
-    console.log(`✅ Admin activity alert email sent to ${adminEmail} for ${eventTitle}`);
     return res.json({ success: true, messageId: info.messageId });
   } catch (error: any) {
     console.error('❌ Error sending admin activity notification email:', error);
@@ -577,15 +470,23 @@ app.post('/api/admin/notify-activity', async (req: Request, res: Response) => {
   }
 });
 
-// 6. Transporter Health Check Endpoint
+// 5. Transporter Health Check Endpoint
 app.get('/api/email-health', async (_req: Request, res: Response) => {
+  if (!isEmailConfigured) {
+    return res.json({
+      status: 'unconfigured',
+      senderName: SENDER_NAME,
+      message: 'SMTP credentials are not configured in environment variables.',
+    });
+  }
+
   try {
-    await transporter.verify();
+    await transporter!.verify();
     return res.json({
       status: 'healthy',
       senderName: SENDER_NAME,
       senderEmail: SMTP_USER,
-      message: 'Nodemailer Gmail SMTP is ready and operational.',
+      message: 'Nodemailer SMTP is ready and operational.',
     });
   } catch (err: any) {
     return res.status(500).json({
