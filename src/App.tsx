@@ -137,6 +137,7 @@ export default function App() {
   // Real-time Admin user directory sync
   useEffect(() => {
     if (currentUser?.role === 'admin') {
+      RentalStorageService.backfillVehiclesOwnerSuspended();
       const unsub = AuthService.initAdminUsersSync((users) => {
         setAllUsers(users);
       });
@@ -426,23 +427,6 @@ export default function App() {
 
     await RentalStorageService.saveBooking(newBooking);
 
-    // Create pending payout record for the vehicle owner
-    const newPayout: PayoutRecord = {
-      id: `pay-${Date.now()}`,
-      ownerId: newBooking.ownerId,
-      ownerName: newBooking.ownerName,
-      ownerUpiOrBank: 'UPI/Bank on file',
-      bookingId: newBooking.id,
-      vehiclePlate: newBooking.vehicle.licensePlate,
-      grossAmount: newBooking.totalRental,
-      platformCommission: newBooking.platformCommission,
-      netPayout: newBooking.ownerNetShare,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
-    setPayouts(prev => [newPayout, ...prev]);
-    await RentalStorageService.savePayout(newPayout);
-
     await RentalStorageService.logAudit({
       category: 'BOOKING',
       action: 'Reservation Confirmed',
@@ -701,6 +685,26 @@ export default function App() {
     }
 
     await RentalStorageService.saveBooking(updatedBooking);
+
+    // Create pending payout record for the vehicle owner upon check-in completion (once per finished trip)
+    const existingPayout = payouts.find(p => p.bookingId === target.id);
+    if (!existingPayout) {
+      const newPayout: PayoutRecord = {
+        id: `pay-${Date.now()}`,
+        ownerId: target.ownerId,
+        ownerName: target.ownerName,
+        ownerUpiOrBank: 'UPI/Bank on file',
+        bookingId: target.id,
+        vehiclePlate: target.vehicle.licensePlate,
+        grossAmount: target.totalRental,
+        platformCommission: target.platformCommission,
+        netPayout: target.ownerNetShare,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      };
+      setPayouts(prev => [newPayout, ...prev]);
+      await RentalStorageService.savePayout(newPayout);
+    }
 
     await RentalStorageService.logAudit({
       category: 'CHECK_IN',

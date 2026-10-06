@@ -94,7 +94,11 @@ export class RentalStorageService {
       } else if (role === 'vehicle_owner') {
         vehQuery = query(collection(db, 'vehicles'), where('ownerId', '==', uid));
       } else {
-        vehQuery = query(collection(db, 'vehicles'), where('approvalStatus', '==', 'approved'));
+        vehQuery = query(
+          collection(db, 'vehicles'), 
+          where('approvalStatus', '==', 'approved'),
+          where('ownerSuspended', '==', false)
+        );
       }
 
       unsubs.push(
@@ -239,19 +243,37 @@ export class RentalStorageService {
   }
 
   static async saveVehicle(vehicle: Vehicle): Promise<void> {
+    const vehicleToSave: Vehicle = {
+      ...vehicle,
+      ownerSuspended: vehicle.ownerSuspended ?? false,
+    };
     const list = this.getVehicles();
-    const idx = list.findIndex(v => v.id === vehicle.id);
+    const idx = list.findIndex(v => v.id === vehicleToSave.id);
     if (idx >= 0) {
-      list[idx] = vehicle;
+      list[idx] = vehicleToSave;
     } else {
-      list.push(vehicle);
+      list.push(vehicleToSave);
     }
     localStorage.setItem(STORAGE_KEYS.VEHICLES, JSON.stringify(list));
     try {
-      await setDoc(doc(db, 'vehicles', vehicle.id), cleanForFirestore(vehicle), { merge: true });
+      await setDoc(doc(db, 'vehicles', vehicleToSave.id), cleanForFirestore(vehicleToSave), { merge: true });
     } catch (e) {
       console.warn('Vehicle Firestore save error:', e);
       throw e;
+    }
+  }
+
+  static async backfillVehiclesOwnerSuspended(): Promise<void> {
+    try {
+      const snap = await getDocs(collection(db, 'vehicles'));
+      snap.forEach(async (d) => {
+        const data = d.data();
+        if (data.ownerSuspended === undefined || data.ownerSuspended === null) {
+          await setDoc(doc(db, 'vehicles', d.id), { ownerSuspended: false }, { merge: true });
+        }
+      });
+    } catch (e) {
+      console.warn('Backfill vehicles ownerSuspended notice:', e);
     }
   }
 

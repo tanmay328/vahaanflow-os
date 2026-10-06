@@ -121,6 +121,23 @@ function checkEmailConfig(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+function escapeHtml(value: any): string {
+  if (value == null) return '';
+  const str = String(value).slice(0, 500);
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizeSubject(value: any): string {
+  if (value == null) return '';
+  const str = String(value).slice(0, 500);
+  return str.replace(/[\r\n]/g, ' ');
+}
+
 // 1. Welcome Email API (For Car Owners & Customers - recipient fixed to verified user email)
 app.post('/api/auth/send-welcome-email', authenticateFirebaseToken, checkEmailConfig, emailRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -132,9 +149,18 @@ app.post('/api/auth/send-welcome-email', authenticateFirebaseToken, checkEmailCo
     const { name, role, phone, upiId, drivingLicense } = req.body;
     const isOwner = role === 'vehicle_owner';
     const roleTitle = isOwner ? 'Car Owner' : 'Customer (Rent a Car)';
-    const subject = isOwner 
+    
+    const safeName = escapeHtml(name || 'User');
+    const safeRoleTitle = escapeHtml(roleTitle);
+    const safeUserEmail = escapeHtml(userEmail);
+    const safePhone = escapeHtml(phone);
+    const safeUpiId = escapeHtml(upiId);
+    const safeDrivingLicense = escapeHtml(drivingLicense);
+
+    const rawSubject = isOwner 
       ? `Welcome to GoDrive - Your Car Owner Account is Active!` 
       : `Welcome to GoDrive - Ready to Rent & Drive!`;
+    const subject = sanitizeSubject(rawSubject);
 
     const html = `
       <!DOCTYPE html>
@@ -164,34 +190,34 @@ app.post('/api/auth/send-welcome-email', authenticateFirebaseToken, checkEmailCo
             <p>Smart Car Rental & Fleet Operations</p>
           </div>
           <div class="content">
-            <h2 style="color: #ffffff; font-size: 18px; margin-top: 0;">Welcome, ${name || 'User'}! 🎉</h2>
+            <h2 style="color: #ffffff; font-size: 18px; margin-top: 0;">Welcome, ${safeName}! 🎉</h2>
             <p style="color: #d4d4d4; font-size: 14px; line-height: 1.6;">
-              Your account has been successfully created as a <span class="badge">${roleTitle}</span>.
+              Your account has been successfully created as a <span class="badge">${safeRoleTitle}</span>.
             </p>
 
             <div class="welcome-box">
               <div class="field-row">
                 <span class="field-label">Account Category:</span>
-                <span class="field-val">${roleTitle}</span>
+                <span class="field-val">${safeRoleTitle}</span>
               </div>
               <div class="field-row">
                 <span class="field-label">Registered Email:</span>
-                <span class="field-val">${userEmail}</span>
+                <span class="field-val">${safeUserEmail}</span>
               </div>
               ${phone ? `
               <div class="field-row">
                 <span class="field-label">Phone Number:</span>
-                <span class="field-val">${phone}</span>
+                <span class="field-val">${safePhone}</span>
               </div>` : ''}
               ${isOwner && upiId ? `
               <div class="field-row">
                 <span class="field-label">Payout UPI ID:</span>
-                <span class="field-val" style="color: #34d399;">${upiId}</span>
+                <span class="field-val" style="color: #34d399;">${safeUpiId}</span>
               </div>` : ''}
               ${!isOwner && drivingLicense ? `
               <div class="field-row">
                 <span class="field-label">Driving Licence:</span>
-                <span class="field-val">${drivingLicense}</span>
+                <span class="field-val">${safeDrivingLicense}</span>
               </div>` : ''}
             </div>
 
@@ -210,7 +236,7 @@ app.post('/api/auth/send-welcome-email', authenticateFirebaseToken, checkEmailCo
             </div>
           </div>
           <div class="footer">
-            Sent by <strong>${SENDER_NAME}</strong>
+            Sent by <strong>${escapeHtml(SENDER_NAME)}</strong>
           </div>
         </div>
       </body>
@@ -240,7 +266,10 @@ app.post('/api/auth/send-password-updated-email', authenticateFirebaseToken, che
     }
 
     const { userName } = req.body;
-    const subject = `Your GoDrive Password Has Been Successfully Updated`;
+    const safeUserName = escapeHtml(userName || 'Valued User');
+    const safeUserEmail = escapeHtml(userEmail);
+
+    const subject = sanitizeSubject('Your GoDrive Password Has Been Successfully Updated');
     const html = `
       <!DOCTYPE html>
       <html>
@@ -262,12 +291,12 @@ app.post('/api/auth/send-password-updated-email', authenticateFirebaseToken, che
             <h2 style="margin:0; color:#ffffff;">GoDrive Security Alert</h2>
           </div>
           <div class="content">
-            <h3 style="color:#ffffff; margin-top:0;">Hello ${userName || 'Valued User'},</h3>
+            <h3 style="color:#ffffff; margin-top:0;">Hello ${safeUserName},</h3>
             <div class="status-box">
               ✅ Password Successfully Updated
             </div>
             <p style="color:#d4d4d4; font-size:13px; line-height:1.6;">
-              Your account password for <strong>${userEmail}</strong> was recently updated.
+              Your account password for <strong>${safeUserEmail}</strong> was recently updated.
             </p>
             <p style="color:#a3a3a3; font-size:12px; line-height:1.5;">
               You can now sign in to GoDrive using your new password.
@@ -280,7 +309,7 @@ app.post('/api/auth/send-password-updated-email', authenticateFirebaseToken, che
             </p>
           </div>
           <div class="footer">
-            Sent by <strong>${SENDER_NAME}</strong>
+            Sent by <strong>${escapeHtml(SENDER_NAME)}</strong>
           </div>
         </div>
       </body>
@@ -315,7 +344,17 @@ app.post('/api/bookings/send-confirmation-email', authenticateFirebaseToken, che
       return res.status(400).json({ success: false, error: 'Recipient email not available.' });
     }
 
-    const subject = `Booking Confirmed: ${booking.bookingCode} - ${vehicle?.make || 'Car'} ${vehicle?.model || ''}`;
+    const safeBookingCode = escapeHtml(booking.bookingCode || '');
+    const safeCustomerName = escapeHtml(booking.customer?.name || 'Customer');
+    const safeMake = escapeHtml(vehicle?.make || 'Car');
+    const safeModel = escapeHtml(vehicle?.model || '');
+    const safeYear = escapeHtml(vehicle?.year || '');
+    const safePlate = escapeHtml(vehicle?.plateNumber || 'Assigned on delivery');
+    const safeTotal = escapeHtml(booking.costs?.finalCost || booking.costs?.baseRate || 0);
+    const safeDeposit = escapeHtml(booking.securityDeposit?.amount || 5000);
+
+    const rawSubject = `Booking Confirmed: ${booking.bookingCode || ''} - ${vehicle?.make || 'Car'} ${vehicle?.model || ''}`;
+    const subject = sanitizeSubject(rawSubject);
 
     const html = `
       <!DOCTYPE html>
@@ -338,36 +377,36 @@ app.post('/api/bookings/send-confirmation-email', authenticateFirebaseToken, che
         <div class="container">
           <div class="header">
             <h1 style="margin:0; font-size:22px;">Booking Confirmed! 🚗</h1>
-            <p style="margin:4px 0 0 0; font-size:13px;">Code: <strong>${booking.bookingCode}</strong></p>
+            <p style="margin:4px 0 0 0; font-size:13px;">Code: <strong>${safeBookingCode}</strong></p>
           </div>
           <div class="content">
-            <h3 style="color:#ffffff; margin-top:0;">Dear ${booking.customer?.name || 'Customer'},</h3>
+            <h3 style="color:#ffffff; margin-top:0;">Dear ${safeCustomerName},</h3>
             <p style="color:#d4d4d4; font-size:13px;">Your car booking has been confirmed with GoDrive. Details below:</p>
 
             <div class="card">
               <div class="row">
                 <span class="label">Vehicle:</span>
-                <span class="val">${vehicle?.make || ''} ${vehicle?.model || ''} (${vehicle?.year || ''})</span>
+                <span class="val">${safeMake} ${safeModel} (${safeYear})</span>
               </div>
               <div class="row">
                 <span class="label">Number Plate:</span>
-                <span class="val" style="color:#34d399; font-family:monospace;">${vehicle?.plateNumber || 'Assigned on delivery'}</span>
+                <span class="val" style="color:#34d399; font-family:monospace;">${safePlate}</span>
               </div>
               <div class="row">
                 <span class="label">Start Date:</span>
-                <span class="val">${booking.startDate ? new Date(booking.startDate).toLocaleString('en-IN') : 'N/A'}</span>
+                <span class="val">${booking.startDate ? escapeHtml(new Date(booking.startDate).toLocaleString('en-IN')) : 'N/A'}</span>
               </div>
               <div class="row">
                 <span class="label">End Date:</span>
-                <span class="val">${booking.endDate ? new Date(booking.endDate).toLocaleString('en-IN') : 'N/A'}</span>
+                <span class="val">${booking.endDate ? escapeHtml(new Date(booking.endDate).toLocaleString('en-IN')) : 'N/A'}</span>
               </div>
               <div class="row">
                 <span class="label">Estimated Total:</span>
-                <span class="val" style="color:#34d399;">₹${booking.costs?.finalCost || booking.costs?.baseRate || 0}</span>
+                <span class="val" style="color:#34d399;">₹${safeTotal}</span>
               </div>
               <div class="row">
                 <span class="label">Security Deposit:</span>
-                <span class="val">₹${booking.securityDeposit?.amount || 5000}</span>
+                <span class="val">₹${safeDeposit}</span>
               </div>
             </div>
 
@@ -376,7 +415,7 @@ app.post('/api/bookings/send-confirmation-email', authenticateFirebaseToken, che
             </p>
           </div>
           <div class="footer">
-            Sent by <strong>${SENDER_NAME}</strong>
+            Sent by <strong>${escapeHtml(SENDER_NAME)}</strong>
           </div>
         </div>
       </body>
@@ -405,8 +444,17 @@ app.post('/api/admin/notify-activity', authenticateFirebaseToken, checkEmailConf
       return res.status(503).json({ success: false, error: 'Admin email recipient is not configured.' });
     }
 
-    const { eventTitle, actorName, actorRole, actorEmail, detailsHtml, summaryText } = req.body;
-    const subject = `[GoDrive Alert] ${eventTitle || 'Platform Event'} - ${actorName || 'User'}`;
+    const { eventTitle, actorName, actorRole, actorEmail, summaryText } = req.body;
+
+    const safeEventTitle = escapeHtml(eventTitle || 'Platform Event');
+    const safeActorName = escapeHtml(actorName || 'User');
+    const safeActorRole = escapeHtml(actorRole || 'Member');
+    const safeActorEmail = escapeHtml(actorEmail || req.user?.email || 'N/A');
+    const safeSummaryText = escapeHtml(summaryText || 'Activity logged on platform.');
+
+    const rawSubject = `[GoDrive Alert] ${eventTitle || 'Platform Event'} - ${actorName || 'User'}`;
+    const subject = sanitizeSubject(rawSubject);
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -432,20 +480,20 @@ app.post('/api/admin/notify-activity', authenticateFirebaseToken, checkEmailConf
             <p style="margin:4px 0 0 0; font-size:12px; opacity:0.9;">Platform Operations & Activity Log</p>
           </div>
           <div class="content">
-            <h3 style="color: #34d399; margin-top: 0; font-size: 16px;">${eventTitle || 'Activity Logged'}</h3>
+            <h3 style="color: #34d399; margin-top: 0; font-size: 16px;">${safeEventTitle}</h3>
             <p style="color: #d4d4d4; font-size: 13px;">An action was performed on the platform:</p>
             
             <div class="alert-box">
               <div class="field-row">
                 <span class="field-label">Action By:</span>
-                <span class="field-val">${actorName || 'User'} (${actorEmail || req.user?.email || 'N/A'})</span>
+                <span class="field-val">${safeActorName} (${safeActorEmail})</span>
               </div>
               <div class="field-row">
                 <span class="field-label">Role:</span>
-                <span class="field-val">${actorRole || 'Member'}</span>
+                <span class="field-val">${safeActorRole}</span>
               </div>
               <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #404040; color: #e5e5e5; font-size: 13px; line-height: 1.5;">
-                ${detailsHtml || summaryText || 'Activity logged on platform.'}
+                ${safeSummaryText}
               </div>
             </div>
           </div>

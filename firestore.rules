@@ -26,8 +26,7 @@ service cloud.firestore {
 
     // 1. Users collection
     // users/{uid}: a user can read and update only their own document; admin can read, update and delete any.
-    // On create, uid must equal request.auth.uid, role must be "vehicle_owner" or "renter" (never "admin"), and approvalStatus must not be "suspended".
-    // A non-admin user must NOT be able to change role, approvalStatus, suspensionReason, or ownerDetails.approvalStatus.
+    // Self-update uses .get('field', null) for safe field comparisons on role, approvalStatus, suspensionReason, and ownerDetails.approvalStatus.
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       
@@ -39,30 +38,25 @@ service cloud.firestore {
 
       allow update: if isAdmin() || (
         isOwner(userId)
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.approvalStatus == resource.data.approvalStatus
-        && (!('suspensionReason' in request.resource.data) || request.resource.data.suspensionReason == resource.data.suspensionReason)
-        && (
-          !('ownerDetails' in resource.data) 
-          || !('ownerDetails' in request.resource.data) 
-          || request.resource.data.ownerDetails.approvalStatus == resource.data.ownerDetails.approvalStatus
-        )
+        && request.resource.data.get('role', null) == resource.data.get('role', null)
+        && request.resource.data.get('approvalStatus', null) == resource.data.get('approvalStatus', null)
+        && request.resource.data.get('suspensionReason', null) == resource.data.get('suspensionReason', null)
+        && request.resource.data.get(['ownerDetails', 'approvalStatus'], null) == resource.data.get(['ownerDetails', 'approvalStatus'], null)
       );
 
       allow delete: if isAdmin();
     }
 
     // 2. Vehicles collection
-    // Read: signed-in user can read if approvalStatus == "approved" and ownerSuspended != true, or if they own it, or if they are admin.
-    // Create: Owners can create vehicles only with ownerId == their uid and approvalStatus == "pending_approval"
-    // Update: Owners can update only their own vehicles without changing approvalStatus or ownerId. 
-    // Narrow status update: signed-in renters can update status from 'available' to 'booked' during booking.
-    // Admin can do everything.
+    // Read: non-owner, non-admin readers require resource.data.ownerSuspended == false and approvalStatus == 'approved'.
+    // Create: Owners can create vehicles with ownerId == their uid and approvalStatus == "pending_approval".
+    // Update: Owners can update their own vehicles but CANNOT change dailyRate, ownerSuspended, ownerId or approvalStatus. Renters can update status from 'available' to 'booked' during booking.
+    // Delete: ONLY admin can delete vehicles.
     match /vehicles/{vehicleId} {
       allow read: if isSignedIn() && (
         isAdmin()
         || resource.data.ownerId == request.auth.uid
-        || (resource.data.approvalStatus == 'approved' && (!('ownerSuspended' in resource.data) || resource.data.ownerSuspended != true))
+        || (resource.data.approvalStatus == 'approved' && resource.data.ownerSuspended == false)
       );
 
       allow create: if isAdmin() || (
@@ -76,6 +70,8 @@ service cloud.firestore {
         && resource.data.ownerId == request.auth.uid
         && request.resource.data.ownerId == resource.data.ownerId
         && request.resource.data.approvalStatus == resource.data.approvalStatus
+        && request.resource.data.dailyRate == resource.data.dailyRate
+        && request.resource.data.ownerSuspended == resource.data.ownerSuspended
       ) || (
         isSignedIn()
         && resource.data.status == 'available'
@@ -83,14 +79,13 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
       );
 
-      allow delete: if isAdmin() || (
-        isSignedIn() && resource.data.ownerId == request.auth.uid
-      );
+      allow delete: if isAdmin();
     }
 
     // 3. Bookings collection
     // Customer can create booking with their own uid as customerId and read their own.
     // Owner can read bookings for their own cars and update only owner approval fields.
+    // Customer can update status only from 'confirmed' to 'cancelled' along with cancellation fields.
     // Admin can read and write all.
     match /bookings/{bookingId} {
       allow read: if isSignedIn() && (
@@ -111,6 +106,8 @@ service cloud.firestore {
       ) || (
         isSignedIn()
         && resource.data.customerId == request.auth.uid
+        && resource.data.status == 'confirmed'
+        && request.resource.data.status == 'cancelled'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancellationReason', 'cancelledAt', 'cancelledBy'])
       );
 
@@ -118,21 +115,19 @@ service cloud.firestore {
     }
 
     // 4. Payouts collection
-    // Owner can read only their own; only admin can update or delete.
-    // Creation allowed for signed-in booking flow or admin.
+    // Read: admin or vehicle owner.
+    // Create: ONLY admin can create payouts.
+    // Update & Delete: admin only.
     match /payouts/{payoutId} {
       allow read: if isSignedIn() && (
         isAdmin()
         || resource.data.ownerId == request.auth.uid
       );
 
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     // 5. Disputes collection
-    // Any signed-in user can create a dispute for themselves (reporterId == request.auth.uid) and read their own.
-    // Only admin can update (resolve) or delete.
     match /disputes/{disputeId} {
       allow read: if isSignedIn() && (
         isAdmin()
@@ -148,8 +143,6 @@ service cloud.firestore {
     }
 
     // 6. Audit Logs collection
-    // Signed-in users can create entries where the actor.id equals their uid.
-    // Only admin can read all; nobody can update; only admin can delete.
     match /auditLogs/{auditId} {
       allow read: if isAdmin();
       
@@ -163,13 +156,11 @@ service cloud.firestore {
     }
 
     // 7. Maintenance collection
-    // Admin read and write only.
     match /maintenance/{maintId} {
       allow read, write: if isAdmin();
     }
 
     // 8. Platform Settings collection
-    // Settings readable by any signed-in user; admin write.
     match /settings/{docId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();

@@ -186,39 +186,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         {/* Left Column: Overview */}
         <div className="lg:col-span-6 space-y-6">
           <div className="space-y-3">
-            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-mono transition-colors duration-300 ${
-              theme === 'light' ? 'border-emerald-300 bg-emerald-500/10 text-emerald-800 font-semibold' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-            }`}>
-              <span>Fleet & Rental Platform</span>
-            </div>
-
             <h1 className={`text-3xl sm:text-4xl font-extrabold tracking-tight leading-tight transition-colors duration-300 ${
               theme === 'light' ? 'text-slate-900' : 'text-white'
             }`}>
-              Car Rental & <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">Fleet Management</span>
+              Car Rental <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">Made Easy</span>
             </h1>
 
             <p className={`text-sm leading-relaxed transition-colors duration-300 ${
               theme === 'light' ? 'text-slate-600' : 'text-neutral-400'
             }`}>
-              Rent verified self-drive vehicles or list your car to start earning.
+              Rent verified vehicles or list your car to start earning.
             </p>
           </div>
 
           {/* Role Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-            <div className={`rounded-xl border p-3.5 space-y-1.5 transition-all duration-300 ${
-              theme === 'light' ? 'border-slate-200 bg-white shadow-sm text-slate-800' : 'border-neutral-800 bg-neutral-900/60 text-neutral-100'
-            }`}>
-              <div className={`flex items-center gap-1.5 text-xs font-bold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
-                <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
-                <span>Admin</span>
-              </div>
-              <p className={`text-[11px] leading-relaxed ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
-                Fleet operations, inspections & payouts.
-              </p>
-            </div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div className={`rounded-xl border p-3.5 space-y-1.5 transition-all duration-300 ${
               theme === 'light' ? 'border-slate-200 bg-white shadow-sm text-slate-800' : 'border-neutral-800 bg-neutral-900/60 text-neutral-100'
             }`}>
@@ -239,7 +221,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 <span>Customer</span>
               </div>
               <p className={`text-[11px] leading-relaxed ${theme === 'light' ? 'text-slate-500' : 'text-neutral-400'}`}>
-                Rent & self-drive cars with quick KYC.
+                Rent cars with quick KYC verification.
               </p>
             </div>
           </div>

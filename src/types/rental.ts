@@ -27,6 +27,7 @@ export interface Vehicle {
   ownerName: string;
   ownerEmail: string;
   approvalStatus: 'approved' | 'pending_approval' | 'rejected';
+  ownerSuspended?: boolean;
   rejectionReason?: string;
   
   make: string;
