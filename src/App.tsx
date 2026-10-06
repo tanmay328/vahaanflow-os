@@ -519,7 +519,7 @@ export default function App() {
     try {
       await RentalStorageService.saveBooking(updated);
       const targetVehicle = vehicles.find(v => v.id === target.vehicleId);
-      if (targetVehicle && (targetVehicle.status === 'booked' || targetVehicle.status === 'on_trip')) {
+      if (targetVehicle) {
         await RentalStorageService.saveVehicle({ ...targetVehicle, status: 'available' });
       }
     } catch (err) {

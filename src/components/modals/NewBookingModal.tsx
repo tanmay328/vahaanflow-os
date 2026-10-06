@@ -3,7 +3,7 @@ import { Vehicle, Booking, INDIAN_LOCATIONS } from '../../types/rental';
 import { UserProfile } from '../../types/auth';
 import { EmailService } from '../../services/emailService';
 import { RentalStorageService } from '../../services/rentalStorage';
-import { cleanImageUrl } from '../../utils/imageHelper';
+import { cleanImageUrl, getCarGallery } from '../../utils/imageHelper';
 import { 
   X, 
   Calendar,
@@ -12,7 +12,9 @@ import {
   ShieldCheck,
   CheckCircle2,
   Loader2,
-  MapPin
+  MapPin,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface NewBookingModalProps {
@@ -55,6 +57,17 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
   );
 
   const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId) || allChoices[0];
+
+  const [activePreviewImage, setActivePreviewImage] = useState<string>(
+    initialVehicle?.image || (allChoices[0]?.image || '')
+  );
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right'>('right');
+
+  useEffect(() => {
+    if (selectedVehicle) {
+      setActivePreviewImage(selectedVehicle.image);
+    }
+  }, [selectedVehicleId, selectedVehicle]);
 
   // Dates
   const [startDate, setStartDate] = useState<string>('2026-10-10');
@@ -203,6 +216,34 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+      <style dangerouslySetInnerHTML={{ __html: `
+        .car-swipe-left {
+          animation: carSwipeLeftIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .car-swipe-right {
+          animation: carSwipeRightIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes carSwipeLeftIn {
+          from {
+            opacity: 0.5;
+            transform: scale(1.02) translateX(-16px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateX(0);
+          }
+        }
+        @keyframes carSwipeRightIn {
+          from {
+            opacity: 0.5;
+            transform: scale(1.02) translateX(16px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateX(0);
+          }
+        }
+      `}} />
       <div className={`relative w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-300 ${
         theme === 'light' ? 'border-slate-200 bg-white text-slate-900' : 'border-neutral-800 bg-neutral-900 text-neutral-100'
       }`}>
@@ -263,22 +304,111 @@ export const NewBookingModal: React.FC<NewBookingModalProps> = ({
               ))}
             </select>
 
-            {selectedVehicle && (
-              <div className="flex items-center gap-3 pt-2">
-                <img
-                  src={cleanImageUrl(selectedVehicle.image)}
-                  alt={selectedVehicle.model}
-                  className={`h-12 w-20 rounded-lg object-cover border ${
-                    theme === 'light' ? 'border-slate-200' : 'border-neutral-800'
-                  }`}
-                />
-                <div className={`text-[11px] space-y-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
-                  <div className={`font-semibold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{selectedVehicle.make} {selectedVehicle.model} ({selectedVehicle.year})</div>
-                  <div>Plate: <strong className={theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}>{selectedVehicle.licensePlate}</strong> &middot; Category: {selectedVehicle.category.toUpperCase()}</div>
-                  <div>Daily Rate: <strong className="text-emerald-600 font-bold">₹{selectedVehicle.dailyRate}/day</strong> &middot; Escrow Deposit: ₹{depositAmount.toLocaleString()}</div>
+            {selectedVehicle && (() => {
+              const bookingCarAngles = getCarGallery(selectedVehicle);
+              return (
+                <div className="pt-2 space-y-3">
+                  <div className="flex flex-col sm:flex-row items-start gap-4">
+                    {/* Multi-angle image preview box */}
+                    <div className="space-y-1.5 shrink-0">
+                      <div className="relative overflow-hidden rounded-xl group border shadow-sm" style={{ width: 'fit-content' }}>
+                        <img
+                          key={activePreviewImage || selectedVehicle.image}
+                          src={cleanImageUrl(activePreviewImage || selectedVehicle.image)}
+                          alt={selectedVehicle.model}
+                          className={`h-24 w-36 sm:h-28 sm:w-44 object-cover ${swipeDirection === 'left' ? 'car-swipe-left' : 'car-swipe-right'}`}
+                        />
+
+                        {/* Swipe Arrows in NewBookingModal */}
+                        {bookingCarAngles.length > 1 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentImg = activePreviewImage || selectedVehicle.image;
+                                const idx = bookingCarAngles.indexOf(currentImg);
+                                const prevIdx = (idx - 1 + bookingCarAngles.length) % bookingCarAngles.length;
+                                setSwipeDirection('left');
+                                setActivePreviewImage(bookingCarAngles[prevIdx]);
+                              }}
+                              className="absolute left-1.5 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 opacity-0 group-hover:opacity-100 transition-all z-20 cursor-pointer shadow"
+                              title="Previous photo"
+                            >
+                              <ChevronLeft className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentImg = activePreviewImage || selectedVehicle.image;
+                                const idx = bookingCarAngles.indexOf(currentImg);
+                                const nextIdx = (idx + 1) % bookingCarAngles.length;
+                                setSwipeDirection('right');
+                                setActivePreviewImage(bookingCarAngles[nextIdx]);
+                              }}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 opacity-0 group-hover:opacity-100 transition-all z-20 cursor-pointer shadow"
+                              title="Next photo"
+                            >
+                              <ChevronRight className="h-3 w-3" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      
+                      {bookingCarAngles.length > 1 && (
+                        <div className="flex gap-1 overflow-x-auto max-w-[150px] sm:max-w-[176px] py-1 scrollbar-none">
+                          {bookingCarAngles.map((angle, idx) => {
+                            const isActive = activePreviewImage === angle;
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  const currentImg = activePreviewImage || selectedVehicle.image;
+                                  const currentIdx = bookingCarAngles.indexOf(currentImg);
+                                  const clickIdx = bookingCarAngles.indexOf(angle);
+                                  const dir = clickIdx < currentIdx ? 'left' : 'right';
+                                  setSwipeDirection(dir);
+                                  setActivePreviewImage(angle);
+                                }}
+                                className={`h-6 w-9 rounded overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                                  isActive 
+                                    ? 'border-emerald-500 scale-105 shadow-sm' 
+                                    : 'border-neutral-800 opacity-70 hover:opacity-100'
+                                }`}
+                              >
+                                <img
+                                  src={cleanImageUrl(angle)}
+                                  alt={`Angle ${idx + 1}`}
+                                  className="h-full w-full object-cover"
+                                />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Vehicle Text Details */}
+                    <div className={`text-xs space-y-1 py-1 flex-1 ${theme === 'light' ? 'text-slate-600' : 'text-neutral-400'}`}>
+                      <div className={`text-sm font-extrabold tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                        {selectedVehicle.make} {selectedVehicle.model} ({selectedVehicle.year})
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 pt-1 text-[11px]">
+                        <div>Plate: <strong className={theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}>{selectedVehicle.licensePlate}</strong></div>
+                        <div>Category: <span className="font-semibold uppercase text-emerald-500 text-[10px]">{selectedVehicle.category}</span></div>
+                        <div>Transmission: <strong className={theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}>{selectedVehicle.transmission}</strong></div>
+                        <div>Fuel: <strong className={theme === 'light' ? 'text-slate-800' : 'text-neutral-300'}>{selectedVehicle.fuelType}</strong></div>
+                      </div>
+
+                      <div className="pt-2 border-t border-dashed border-neutral-800/80 mt-2 text-[11px]">
+                        <div>Daily Rate: <strong className="text-emerald-500 font-bold text-xs">₹{selectedVehicle.dailyRate}/day</strong> &middot; Escrow Deposit: <strong className={theme === 'light' ? 'text-slate-900' : 'text-white'}>₹{depositAmount.toLocaleString()}</strong></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Dates & Timings */}

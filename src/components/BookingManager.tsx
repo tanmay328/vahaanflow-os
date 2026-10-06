@@ -61,7 +61,20 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
   const isOwner = currentUser?.role === 'vehicle_owner' && currentUser?.activeViewMode !== 'renter';
   const isCustomer = currentUser?.role === 'renter' || currentUser?.activeViewMode === 'renter';
 
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const formatDateSafely = (val: any): string => {
+    if (!val) return 'N/A';
+    if (val && typeof val === 'object' && typeof val.seconds === 'number') {
+      const d = new Date(val.seconds * 1000);
+      return d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    const parsed = new Date(val);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    return String(val);
+  };
+
+  const [statusFilter, setStatusFilter] = useState<string>('confirmed');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Double-Confirmation State for Cancellation
@@ -97,9 +110,13 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
   }, [bookings, isOwner, isCustomer, currentUser?.id, currentUser?.email]);
 
   const filteredBookings = useMemo(() => {
-    return scopedBookings.filter(b => {
+    const list = scopedBookings.filter(b => {
       if (!b) return false;
-      if (statusFilter !== 'all' && b.status !== statusFilter) return false;
+      if (statusFilter === 'confirmed') {
+        if (b.status !== 'confirmed' && b.status !== 'active') return false;
+      } else {
+        if (b.status !== statusFilter) return false;
+      }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchCode = (b.bookingCode || '').toLowerCase().includes(q);
@@ -110,6 +127,20 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
         return matchCode || matchCust || matchVeh;
       }
       return true;
+    });
+
+    const getTimeOf = (val: any): number => {
+      if (!val) return 0;
+      if (typeof val === 'object' && typeof val.seconds === 'number') {
+        return val.seconds * 1000;
+      }
+      const parsed = new Date(val);
+      return isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+    };
+
+    // Recent bookings at the top, old bookings at the bottom
+    return list.sort((a, b) => {
+      return getTimeOf(b.createdAt) - getTimeOf(a.createdAt);
     });
   }, [scopedBookings, statusFilter, searchQuery]);
 
@@ -180,21 +211,44 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
           />
         </div>
 
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className={`rounded-lg border px-3 py-2 text-xs focus:outline-none ${
-            theme === 'light'
-              ? 'bg-white border-slate-300 text-slate-900 shadow-sm focus:border-emerald-600'
-              : 'bg-neutral-900 border-neutral-800 text-white focus:border-emerald-500'
-          }`}
-        >
-          <option value="all">All Trips & Bookings</option>
-          <option value="confirmed">Confirmed (Upcoming)</option>
-          <option value="active">Active (On Trip)</option>
-          <option value="completed">Completed & Settled</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+        <div className="flex rounded-xl p-1 border transition-all max-w-md w-full md:w-auto" style={{
+          borderColor: theme === 'light' ? '#e2e8f0' : '#262626',
+          backgroundColor: theme === 'light' ? '#f1f5f9' : '#0a0a0a'
+        }}>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('confirmed')}
+            className={`flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              statusFilter === 'confirmed'
+                ? (theme === 'light' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'bg-neutral-800 text-white shadow-sm font-bold')
+                : (theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-neutral-400 hover:text-white')
+            }`}
+          >
+            Confirmed
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('completed')}
+            className={`flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              statusFilter === 'completed'
+                ? (theme === 'light' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'bg-neutral-800 text-white shadow-sm font-bold')
+                : (theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-neutral-400 hover:text-white')
+            }`}
+          >
+            Completed
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('cancelled')}
+            className={`flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              statusFilter === 'cancelled'
+                ? (theme === 'light' ? 'bg-white text-slate-900 shadow-sm font-bold' : 'bg-neutral-800 text-white shadow-sm font-bold')
+                : (theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-neutral-400 hover:text-white')
+            }`}
+          >
+            Cancelled
+          </button>
+        </div>
       </div>
 
       {/* Empty State */}
@@ -311,15 +365,22 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
                     <div className={`mt-3 pt-2.5 border-t flex items-center justify-between text-[11px] ${
                       theme === 'light' ? 'border-slate-100 text-slate-600' : 'border-neutral-800/80 text-neutral-400'
                     }`}>
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="h-3 w-3 text-emerald-600" />
-                        <span>
-                          {startDateDisplay ? `${startDateDisplay}${b.pickupTime ? ` (${b.pickupTime})` : ''}` : 'Scheduled'} 
-                          {endDateDisplay ? ` → ${endDateDisplay}` : ''}
-                        </span>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Calendar className="h-3 w-3 text-emerald-600 shrink-0" />
+                          <span>
+                            {startDateDisplay ? `${startDateDisplay}${b.pickupTime ? ` (${b.pickupTime})` : ''}` : 'Scheduled'} 
+                            {endDateDisplay ? ` → ${endDateDisplay}${b.returnTime ? ` (${b.returnTime})` : ''}` : ''}
+                          </span>
+                        </div>
+                        {b.createdAt && (
+                          <div className={`text-[10px] font-mono leading-none ${theme === 'light' ? 'text-slate-400' : 'text-neutral-500'}`}>
+                            Booked on: {formatDateSafely(b.createdAt)}
+                          </div>
+                        )}
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         {b.status === 'confirmed' && (
                           <button
                             type="button"
@@ -405,7 +466,7 @@ export const BookingManager: React.FC<BookingManagerProps> = ({
                         <span>Reservation Cancelled</span>
                         {activeBooking.cancelledAt && (
                           <span className="font-mono text-[10px] opacity-75">
-                            ({new Date(activeBooking.cancelledAt).toLocaleString()})
+                            ({formatDateSafely(activeBooking.cancelledAt)})
                           </span>
                         )}
                       </div>

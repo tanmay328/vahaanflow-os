@@ -17,6 +17,23 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 
+function cleanForFirestore<T>(obj: T): any {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanForFirestore(item));
+  }
+  if (typeof obj === 'object') {
+    const cleaned: Record<string, any> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== undefined) {
+        cleaned[k] = cleanForFirestore(v);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export class AuthService {
   // Listen to Firebase Auth state & user profile in real-time
   static initAuthListener(onAuthUpdate: (user: UserProfile | null, suspensionError?: string) => void): () => void {
@@ -190,7 +207,7 @@ export class AuthService {
         },
       };
 
-      await setDoc(doc(db, 'users', uid), newUser);
+      await setDoc(doc(db, 'users', uid), cleanForFirestore(newUser));
 
       // Send Welcome Email
       EmailService.sendWelcomeEmail({
@@ -239,7 +256,7 @@ export class AuthService {
 
   static async syncUserProfileToFirestore(user: UserProfile): Promise<void> {
     try {
-      await setDoc(doc(db, 'users', user.id), user, { merge: true });
+      await setDoc(doc(db, 'users', user.id), cleanForFirestore(user), { merge: true });
     } catch (err) {
       console.warn('Could not sync user profile to Firestore:', err);
     }

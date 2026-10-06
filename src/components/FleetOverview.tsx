@@ -12,9 +12,11 @@ import {
   Plus, 
   Edit3, 
   Trash2, 
-  Calendar
+  Calendar,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
-import { cleanImageUrl } from '../utils/imageHelper';
+import { cleanImageUrl, getCarGallery } from '../utils/imageHelper';
 
 interface FleetOverviewProps {
   vehicles: Vehicle[];
@@ -56,6 +58,11 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   // Two-step delete confirmation (browser confirm()/prompt() are blocked in AI Studio's preview frame)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  
+  // Track active photo angle of each vehicle card
+  const [cardImages, setCardImages] = useState<Record<string, string>>({});
+  // Track last swiped direction of each vehicle card ('left' or 'right')
+  const [cardDirections, setCardDirections] = useState<Record<string, 'left' | 'right'>>({});
 
   // Strict Role Isolation: Owner sees only own vehicles! Suspending an owner hides their cars from customers.
   const scopedVehicles = useMemo(() => {
@@ -97,6 +104,34 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
 
   return (
     <div className="space-y-6">
+      <style dangerouslySetInnerHTML={{ __html: `
+        .car-swipe-left {
+          animation: carSwipeLeftIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .car-swipe-right {
+          animation: carSwipeRightIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes carSwipeLeftIn {
+          from {
+            opacity: 0.5;
+            transform: scale(1.02) translateX(-16px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateX(0);
+          }
+        }
+        @keyframes carSwipeRightIn {
+          from {
+            opacity: 0.5;
+            transform: scale(1.02) translateX(16px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateX(0);
+          }
+        }
+      `}} />
       
       {/* Top Header */}
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 ${
@@ -200,6 +235,7 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
         {filteredVehicles.map(vehicle => {
           const isPending = vehicle.approvalStatus === 'pending_approval';
           const isPersonalBlocked = vehicle.blockedDates && vehicle.blockedDates.length > 0;
+          const carAngles = getCarGallery(vehicle);
 
           return (
             <div
@@ -211,14 +247,64 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
               }`}
             >
               {/* Image & Status Badge */}
-              <div className={`relative h-44 w-full overflow-hidden ${theme === 'light' ? 'bg-slate-100' : 'bg-neutral-950'}`}>
+              <div 
+                onClick={() => {
+                  if (isNormalUserMode) {
+                    if (vehicle.status === 'available') {
+                      onStartBookingForVehicle(vehicle);
+                    }
+                  } else {
+                    onEditVehicle(vehicle);
+                  }
+                }}
+                className={`relative h-44 w-full overflow-hidden cursor-pointer ${theme === 'light' ? 'bg-slate-100' : 'bg-neutral-950'}`}
+              >
                 <img
-                  src={cleanImageUrl(vehicle.image)}
+                  key={cardImages[vehicle.id] || vehicle.image}
+                  src={cleanImageUrl(cardImages[vehicle.id] || vehicle.image)}
                   alt={`${vehicle.make} ${vehicle.model}`}
                   referrerPolicy="no-referrer"
-                  className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className={`h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 ${
+                    cardDirections[vehicle.id] === 'left' ? 'car-swipe-left' : 'car-swipe-right'
+                  }`}
                 />
                 
+                {/* Left/Right Carousel Swipe Arrows */}
+                {carAngles.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const currentImg = cardImages[vehicle.id] || vehicle.image;
+                        const idx = carAngles.indexOf(currentImg);
+                        const prevIdx = (idx - 1 + carAngles.length) % carAngles.length;
+                        setCardDirections(prev => ({ ...prev, [vehicle.id]: 'left' }));
+                        setCardImages(prev => ({ ...prev, [vehicle.id]: carAngles[prevIdx] }));
+                      }}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 opacity-0 group-hover:opacity-100 transition-all z-30 cursor-pointer shadow-md"
+                      title="Previous photo"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const currentImg = cardImages[vehicle.id] || vehicle.image;
+                        const idx = carAngles.indexOf(currentImg);
+                        const nextIdx = (idx + 1) % carAngles.length;
+                        setCardDirections(prev => ({ ...prev, [vehicle.id]: 'right' }));
+                        setCardImages(prev => ({ ...prev, [vehicle.id]: carAngles[nextIdx] }));
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center border border-white/10 opacity-0 group-hover:opacity-100 transition-all z-30 cursor-pointer shadow-md"
+                      title="Next photo"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+
                 {/* Status Badges */}
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
                   <span 
@@ -246,6 +332,41 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
                     </span>
                   )}
                 </div>
+
+                {/* Clickable different angles selector overlay */}
+                {carAngles.length > 1 && (
+                  <div 
+                    className="absolute bottom-3 left-3 flex gap-1 z-20"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {carAngles.slice(0, 4).map((angle, idx) => {
+                      const isActive = (cardImages[vehicle.id] || vehicle.image) === angle;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            const currentImg = cardImages[vehicle.id] || vehicle.image;
+                            const currentIdx = carAngles.indexOf(currentImg);
+                            const clickIdx = carAngles.indexOf(angle);
+                            const dir = clickIdx < currentIdx ? 'left' : 'right';
+                            setCardDirections(prev => ({ ...prev, [vehicle.id]: dir }));
+                            setCardImages(prev => ({ ...prev, [vehicle.id]: angle }));
+                          }}
+                          className={`h-7 w-9 rounded-md overflow-hidden border-2 transition-all cursor-pointer ${
+                            isActive ? 'border-emerald-500 scale-105 shadow-md' : 'border-neutral-800 opacity-80 hover:opacity-100'
+                          }`}
+                        >
+                          <img
+                            src={cleanImageUrl(angle)}
+                            alt={`Angle ${idx + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Daily Price Tag */}
                 <div className={`absolute bottom-3 right-3 rounded-xl px-2.5 py-1 text-right shadow-md border ${

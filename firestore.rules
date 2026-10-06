@@ -41,7 +41,7 @@ service cloud.firestore {
         && request.resource.data.get('role', null) == resource.data.get('role', null)
         && request.resource.data.get('approvalStatus', null) == resource.data.get('approvalStatus', null)
         && request.resource.data.get('suspensionReason', null) == resource.data.get('suspensionReason', null)
-        && request.resource.data.get(['ownerDetails', 'approvalStatus'], null) == resource.data.get(['ownerDetails', 'approvalStatus'], null)
+        && request.resource.data.get('ownerDetails', {}).get('approvalStatus', null) == resource.data.get('ownerDetails', {}).get('approvalStatus', null)
       );
 
       allow delete: if isAdmin();
@@ -77,6 +77,11 @@ service cloud.firestore {
         && resource.data.status == 'available'
         && request.resource.data.status == 'booked'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+      ) || (
+        isSignedIn()
+        && (resource.data.status == 'booked' || resource.data.status == 'on_trip')
+        && request.resource.data.status == 'available'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
       );
 
       allow delete: if isAdmin();
@@ -103,6 +108,12 @@ service cloud.firestore {
         isSignedIn()
         && resource.data.ownerId == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerApprovalStatus', 'ownerApprovalNotes'])
+      ) || (
+        isSignedIn()
+        && resource.data.ownerId == request.auth.uid
+        && resource.data.status == 'confirmed'
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancellationReason', 'cancelledAt', 'cancelledBy'])
       ) || (
         isSignedIn()
         && resource.data.customerId == request.auth.uid

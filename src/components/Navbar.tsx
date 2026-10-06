@@ -394,7 +394,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={toggleSidebar}
               className={`hidden md:flex h-8 w-8 items-center justify-center rounded-xl border absolute transition-all duration-300 ease-in-out cursor-pointer ${
-                isSidebarCollapsed ? 'left-1/2 -translate-x-1/2' : 'left-[192px]'
+                isSidebarCollapsed ? 'left-[20px]' : 'left-[192px]'
               } ${
                 theme === 'dark'
                   ? 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white hover:border-neutral-700'
