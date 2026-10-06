@@ -379,23 +379,23 @@ export const Navbar: React.FC<NavbarProps> = ({
           `}
         >
           {/* Top Header of Sidebar containing Toggle Chevron */}
-          <div className={`h-14 border-b flex items-center shrink-0 px-4 transition-all duration-300 ease-in-out ${
-            isSidebarCollapsed ? 'justify-center' : 'justify-between'
-          } ${theme === 'dark' ? 'border-neutral-800' : 'border-slate-200'}`}>
-            {!isSidebarCollapsed && (
-              <span className={`text-[10px] font-mono font-bold uppercase tracking-wider transition-opacity duration-300 ${
-                isSidebarCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'
-              } ${
-                theme === 'dark' ? 'text-neutral-500' : 'text-slate-400'
-              }`}>
-                Navigation
-              </span>
-            )}
+          <div className={`h-14 border-b flex items-center shrink-0 px-4 relative transition-colors duration-300 ease-in-out ${
+            theme === 'dark' ? 'border-neutral-800' : 'border-slate-200'
+          }`}>
+            <span className={`absolute left-4 text-[10px] font-mono font-bold uppercase tracking-wider transition-all duration-300 ease-in-out ${
+              isSidebarCollapsed ? 'opacity-0 -translate-x-3 pointer-events-none' : 'opacity-100 translate-x-0'
+            } ${
+              theme === 'dark' ? 'text-neutral-500' : 'text-slate-400'
+            }`}>
+              Navigation
+            </span>
             
             <button
               type="button"
               onClick={toggleSidebar}
-              className={`hidden md:flex h-8 w-8 items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer ${
+              className={`hidden md:flex h-8 w-8 items-center justify-center rounded-xl border absolute transition-all duration-300 ease-in-out cursor-pointer ${
+                isSidebarCollapsed ? 'left-1/2 -translate-x-1/2' : 'left-[192px]'
+              } ${
                 theme === 'dark'
                   ? 'border-neutral-800 bg-neutral-900 text-neutral-300 hover:bg-neutral-800 hover:text-white hover:border-neutral-700'
                   : 'border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 hover:border-slate-300'

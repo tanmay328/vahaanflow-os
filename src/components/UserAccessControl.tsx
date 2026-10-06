@@ -24,6 +24,7 @@ interface UserAccessControlProps {
   bookings: Booking[];
   onSuspendUser: (userId: string, reason: string) => Promise<void>;
   onReactivateUser: (userId: string) => Promise<void>;
+  onResetDummyUsers: () => Promise<void>;
   theme?: 'dark' | 'light';
 }
 
@@ -33,6 +34,7 @@ export const UserAccessControl: React.FC<UserAccessControlProps> = ({
   bookings,
   onSuspendUser,
   onReactivateUser,
+  onResetDummyUsers,
   theme = 'dark',
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -43,6 +45,7 @@ export const UserAccessControl: React.FC<UserAccessControlProps> = ({
   const [suspensionReason, setSuspensionReason] = useState<string>('Violation of platform policy / vehicle misuse');
   const [customReason, setCustomReason] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isResetting, setIsResetting] = useState<boolean>(false);
 
   // Filter out admins (Admin can never be listed/suspended)
   const nonAdminUsers = useMemo(() => {
@@ -116,7 +119,30 @@ export const UserAccessControl: React.FC<UserAccessControlProps> = ({
         </div>
 
         {/* Total Badge Summary */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={async () => {
+              if (isResetting) return;
+              setIsResetting(true);
+              try {
+                await onResetDummyUsers();
+              } finally {
+                setIsResetting(false);
+              }
+            }}
+            disabled={isResetting}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all duration-300 flex items-center gap-1.5 ${
+              isResetting 
+                ? 'opacity-50 cursor-not-allowed'
+                : theme === 'light'
+                  ? 'bg-red-50 hover:bg-red-100 border-red-200 text-red-700'
+                  : 'bg-red-950/20 hover:bg-red-950/40 border-red-900/30 text-red-400'
+            }`}
+          >
+            <ShieldAlert className="h-4 w-4 text-red-500" />
+            <span>{isResetting ? 'Resetting Users...' : 'Reset & Recreate Dummy Users'}</span>
+          </button>
+
           <div className={`px-3 py-1.5 rounded-xl border text-xs font-mono flex items-center gap-2 ${
             theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-800' : 'bg-neutral-900 border-neutral-800 text-neutral-200'
           }`}>

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
 
 dotenv.config();
@@ -515,6 +516,113 @@ app.post('/api/admin/notify-activity', authenticateFirebaseToken, checkEmailConf
     return res.json({ success: true, messageId: info.messageId });
   } catch (error: any) {
     console.error('❌ Error sending admin activity notification email:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin-privileged route to reset and recreate dummy users in Firebase Auth & Firestore
+app.post('/api/admin/reset-dummy-users', authenticateFirebaseToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const authUserEmail = req.user?.email;
+    if (!authUserEmail) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: User identity not found.' });
+    }
+
+    const auth = getAuth();
+    const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+
+    // Fetch caller profile to verify they are admin
+    const callerSnap = await db.collection('users').doc(req.user!.uid).get();
+    if (!callerSnap.exists || callerSnap.data()?.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Forbidden: Admin privileges required.' });
+    }
+
+    const emailsToDelete = ['owner_demo@godrive.com', 'customer_demo@godrive.com'];
+
+    // 1. Delete matching users from Firebase Authentication
+    for (const email of emailsToDelete) {
+      try {
+        const userRec = await auth.getUserByEmail(email);
+        await auth.deleteUser(userRec.uid);
+      } catch (e) {
+        // user does not exist in Auth, skip safely
+      }
+    }
+
+    // 2. Delete matching user documents from Firestore users collection
+    for (const email of emailsToDelete) {
+      const snap = await db.collection('users').where('email', '==', email).get();
+      const batch = db.batch();
+      snap.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      await batch.commit();
+    }
+
+    // 3. Recreate Ravi Kumar (Demo Owner)
+    const ownerAuth = await auth.createUser({
+      email: 'owner_demo@godrive.com',
+      password: 'ownerPassword123',
+      displayName: 'Ravi Kumar (Demo Owner)',
+    });
+
+    await db.collection('users').doc(ownerAuth.uid).set({
+      id: ownerAuth.uid,
+      name: 'Ravi Kumar (Demo Owner)',
+      email: 'owner_demo@godrive.com',
+      phone: '+91 98765 43210',
+      role: 'vehicle_owner',
+      activeViewMode: 'vehicle_owner',
+      approvalStatus: 'approved',
+      createdAt: new Date().toISOString(),
+      ownerDetails: {
+        upiId: 'ravi@okaxis',
+        bankAccount: '91827364554433',
+        bankIfsc: 'HDFC0000123',
+        approvalStatus: 'approved',
+        payoutBalance: 12450,
+        totalEarned: 35000,
+        joinedDate: new Date().toISOString().split('T')[0],
+      },
+      renterDetails: {
+        drivingLicense: 'DL-9918273645',
+        aadhaarMasked: 'XXXX-XXXX-8822',
+        kycStatus: 'verified',
+      }
+    });
+
+    // 4. Recreate Pooja Sharma (Demo Customer)
+    const customerAuth = await auth.createUser({
+      email: 'customer_demo@godrive.com',
+      password: 'customerPassword123',
+      displayName: 'Pooja Sharma (Demo Customer)',
+    });
+
+    await db.collection('users').doc(customerAuth.uid).set({
+      id: customerAuth.uid,
+      name: 'Pooja Sharma (Demo Customer)',
+      email: 'customer_demo@godrive.com',
+      phone: '+91 87654 32109',
+      role: 'renter',
+      activeViewMode: 'renter',
+      approvalStatus: 'approved',
+      createdAt: new Date().toISOString(),
+      renterDetails: {
+        drivingLicense: 'DL-1122334455',
+        aadhaarMasked: 'XXXX-XXXX-9911',
+        kycStatus: 'verified',
+      }
+    });
+
+    console.log('✅ Demo accounts successfully re-seeded by admin:', authUserEmail);
+    return res.json({ 
+      success: true, 
+      message: 'Dummy accounts successfully reset and recreated.',
+      owner: { email: 'owner_demo@godrive.com', password: 'ownerPassword123' },
+      customer: { email: 'customer_demo@godrive.com', password: 'customerPassword123' }
+    });
+  } catch (error: any) {
+    console.error('❌ Error resetting dummy users:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });

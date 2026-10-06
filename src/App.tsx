@@ -14,6 +14,7 @@ import { UserProfile } from './types/auth';
 import { RentalStorageService } from './services/rentalStorage';
 import { AuthService } from './services/authService';
 import { EmailService } from './services/emailService';
+import { auth } from './services/firebase';
 import { Navbar } from './components/Navbar';
 import { FleetOverview } from './components/FleetOverview';
 import { BookingManager } from './components/BookingManager';
@@ -286,6 +287,47 @@ export default function App() {
     });
 
     showToast('User Reactivated', `Access restored for ${target.name}.`, 'success');
+  };
+
+  const handleResetDummyUsers = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        showToast('Operation Failed', 'You must be signed in.', 'warning');
+        return;
+      }
+
+      const token = await user.getIdToken();
+      const res = await fetch('/api/admin/reset-dummy-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast('Dummy Users Reset', 'All dummy users have been reset and recreated.', 'success');
+        // Record action in Audit Logs
+        await RentalStorageService.logAudit({
+          category: 'user access',
+          action: 'Dummy Users Reseeded',
+          summary: 'Admin reset and recreated the platform dummy accounts.',
+          actor: {
+            id: currentUser?.id || 'admin',
+            name: currentUser?.name || 'Admin',
+            role: 'admin',
+          },
+          severity: 'warning',
+        });
+      } else {
+        showToast('Operation Failed', data.error || 'Failed to reset dummy users.', 'warning');
+      }
+    } catch (err: any) {
+      console.error('Error resetting dummy users:', err);
+      showToast('Operation Failed', err.message || 'An error occurred.', 'warning');
+    }
   };
 
   // VEHICLE OPERATIONS
@@ -1121,6 +1163,7 @@ export default function App() {
               bookings={bookings}
               onSuspendUser={handleSuspendUser}
               onReactivateUser={handleReactivateUser}
+              onResetDummyUsers={handleResetDummyUsers}
               theme={theme}
             />
           )}
