@@ -37,8 +37,8 @@ import { CheckCircle2, AlertCircle, Info, Lock } from 'lucide-react';
 
 export default function App() {
   // Authentication & Session
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => AuthService.getCurrentUser());
-  const [allUsers, setAllUsers] = useState<UserProfile[]>(() => AuthService.getUsers());
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
 
   // Navigation tab
   const [activeTab, setActiveTab] = useState<'fleet' | 'bookings' | 'earnings' | 'payouts' | 'audit' | 'maintenance' | 'user_access'>('fleet');
@@ -118,51 +118,66 @@ export default function App() {
   const [agreementBookingTarget, setAgreementBookingTarget] = useState<Booking | null>(null);
   const [returnDossierBookingTarget, setReturnDossierBookingTarget] = useState<Booking | null>(null);
 
-  // Real-time Cloud Firestore synchronization
+  // Real-time Firebase Auth listener
   useEffect(() => {
-    const unsubStorage = RentalStorageService.initFirestoreSync({
-      onVehicles: (v) => setVehicles(v),
-      onBookings: (b) => setBookings(b),
-      onAuditLogs: (a) => setAuditLogs(a),
-      onMaintenance: (m) => setMaintenance(m),
-      onPayouts: (p) => setPayouts(p),
-      onDisputes: (d) => setDisputes(d),
-    });
-
-    const unsubUsers = AuthService.initFirestoreUsersSync((users) => {
-      setAllUsers(users);
-      // Keep currentUser refreshed & check for real-time suspension
-      const current = AuthService.getCurrentUser();
-      if (current) {
-        const found = users.find(u => u.id === current.id || u.email.toLowerCase() === current.email.toLowerCase());
-        if (found) {
-          const isSuspended = found.approvalStatus === 'suspended' || found.ownerDetails?.approvalStatus === 'suspended';
-          if (isSuspended && found.role !== 'admin') {
-            const reason = found.suspensionReason || 'Account suspended by administrator.';
-            const errorMsg = `Your account has been suspended by the admin. Reason: ${reason}. Please contact support to restore access.`;
-            setSuspensionError(errorMsg);
-            showToast('Account Suspended', errorMsg, 'warning');
-            AuthService.logout();
-            setCurrentUser(null);
-            return;
-          }
-          setCurrentUser(found);
-        }
+    const unsubAuth = AuthService.initAuthListener((user, err) => {
+      setCurrentUser(user);
+      if (err) {
+        setSuspensionError(err);
+      } else {
+        setSuspensionError(null);
       }
     });
 
     return () => {
-      unsubStorage();
-      unsubUsers();
+      unsubAuth();
     };
   }, []);
 
+  // Real-time Admin user directory sync
+  useEffect(() => {
+    if (currentUser?.role === 'admin') {
+      const unsub = AuthService.initAdminUsersSync((users) => {
+        setAllUsers(users);
+      });
+      return () => unsub();
+    } else {
+      setAllUsers(currentUser ? [currentUser] : []);
+    }
+  }, [currentUser?.role, currentUser?.id]);
+
+  // Real-time Cloud Firestore data synchronization
+  useEffect(() => {
+    const unsubSettings = RentalStorageService.initSettingsSync((s) => setSettings(s));
+
+    if (!currentUser) {
+      return () => { unsubSettings(); };
+    }
+
+    const unsubData = RentalStorageService.initFirestoreSync(
+      currentUser.role,
+      currentUser.id,
+      {
+        onVehicles: (v) => setVehicles(v),
+        onBookings: (b) => setBookings(b),
+        onAuditLogs: (a) => setAuditLogs(a),
+        onMaintenance: (m) => setMaintenance(m),
+        onPayouts: (p) => setPayouts(p),
+        onDisputes: (d) => setDisputes(d),
+      }
+    );
+
+    return () => {
+      unsubSettings();
+      unsubData();
+    };
+  }, [currentUser?.role, currentUser?.id]);
+
   // Handlers for Session
-  const handleLoginSuccess = (user: UserProfile) => {
-    // Ensure owner and admin stay in their dashboard role
+  const handleLoginSuccess = async (user: UserProfile) => {
     if (user.role !== 'renter' && user.activeViewMode === 'renter') {
       user.activeViewMode = user.role;
-      AuthService.setCurrentUser(user);
+      await AuthService.syncUserProfileToFirestore(user);
     }
     setCurrentUser(user);
     setActiveTab('fleet');
@@ -175,21 +190,13 @@ export default function App() {
     showToast('Logged Out', 'You have been logged out safely.', 'info');
   };
 
-  const handleSwitchUser = (userId: string) => {
-    const switched = AuthService.switchUser(userId);
-    if (switched) {
-      setCurrentUser(switched);
-      setActiveTab('fleet');
-      showToast('Switched Profile', `Now active as ${switched.name} (${switched.role === 'admin' ? 'Admin' : 'Car Owner'}).`, 'info');
-    }
-  };
-
   // Toggle Normal Customer View ("for both owner and admin: can use the app as normal user")
-  const handleToggleNormalUserMode = () => {
+  const handleToggleNormalUserMode = async () => {
     if (!currentUser) return;
     const targetMode = currentUser.activeViewMode === 'renter' ? currentUser.role : 'renter';
-    const updated = AuthService.toggleViewMode(currentUser, targetMode);
+    const updated: UserProfile = { ...currentUser, activeViewMode: targetMode };
     setCurrentUser(updated);
+    await AuthService.syncUserProfileToFirestore(updated);
     setActiveTab('fleet');
     if (targetMode === 'renter') {
       showToast('Customer Mode Active', 'You can now browse cars and book as a customer.', 'info');
@@ -221,7 +228,6 @@ export default function App() {
     };
 
     setAllUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
-    AuthService.saveUserToLocal(updatedUser);
     await AuthService.syncUserProfileToFirestore(updatedUser);
 
     // Record every suspend action in Activity History (category "user access", with the reason)
@@ -263,7 +269,6 @@ export default function App() {
     };
 
     setAllUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
-    AuthService.saveUserToLocal(updatedUser);
     await AuthService.syncUserProfileToFirestore(updatedUser);
 
     // Record every reactivate action in Activity History
@@ -906,8 +911,7 @@ export default function App() {
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
       >
-        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-6">
-          <ErrorBoundary fallbackTitle="Could not load this dashboard tab">
+        <ErrorBoundary fallbackTitle="Could not load this dashboard tab">
           {/* TAB 1: FLEET OVERVIEW */}
           {activeTab === 'fleet' && (
             <FleetOverview
@@ -1117,8 +1121,7 @@ export default function App() {
             />
           )}
         </ErrorBoundary>
-      </main>
-    </Navbar>
+      </Navbar>
 
       {/* Modals Container */}
       {vehicleFormOpen && (
