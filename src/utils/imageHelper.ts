@@ -17,7 +17,8 @@ const AVAILABLE_LOCAL_IMAGES = [
   'tata_nexon_ev_1791025578720.jpg',
   'thar_suv_black_1790848409695.jpg',
   'toyota_hilux_pickup_1791026055660.jpg',
-  'toyota_innova_hycross_1791025553936.jpg'
+  'toyota_innova_hycross_1791025553936.jpg',
+  'upload_vehicle_photo_1791278597476.jpg'
 ];
 
 export const cleanImageUrl = (url: string | undefined): string => {
@@ -56,6 +57,28 @@ export const getCarGallery = (vehicle: any): string[] => {
     vehicle.gallery.forEach((img: string) => {
       if (img && !list.includes(img)) list.push(img);
     });
+  }
+
+  // If the cover photo is the placeholder, do NOT append anything
+  if (vehicle.image && (vehicle.image.includes('upload_car_placeholder') || vehicle.image.includes('upload_vehicle_photo'))) {
+    return list;
+  }
+
+  // If there are custom gallery images already uploaded, do NOT append random images
+  if (vehicle.gallery && vehicle.gallery.length > 0) {
+    return list;
+  }
+
+  // If it's a default/preset car, we can keep the cohesive mock gallery so it looks beautiful and functional for demo cars
+  const isPresetCar = [
+    'nexon_ev_blue', 'suv_premium_black', 'luxury_sedan_black', 
+    'mahindra_thar_black', 'sedan_luxury_ev', 'toyota_innova_hycross',
+    'bmw_z4_red', 'force_urbania_van', 'kia_carnival_black', 'maruti_jimny_yellow'
+  ].some(keyword => vehicle.image && vehicle.image.includes(keyword));
+
+  if (!isPresetCar) {
+    // If it's a newly added custom car (not preset), do NOT append random images from other car categories!
+    return list;
   }
 
   // Model-specific and cohesive photo sets ensuring all photos match the exact car type and color theme
@@ -126,5 +149,5 @@ export const getCarGallery = (vehicle: any): string[] => {
     });
   }
 
-  return list.slice(0, 5); // Return up to 5 beautiful, distinct images from different angles & interiors
-};
+  return list.slice(0, 5);
+}; // Return up to 5 beautiful, distinct images from different angles & interiors

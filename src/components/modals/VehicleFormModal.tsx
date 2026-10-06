@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { EmailService } from '../../services/emailService';
 
 interface VehicleFormModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ interface VehicleFormModalProps {
   initialVehicle?: Vehicle | null;
   allOwners: UserProfile[];
   onSaveVehicle: (vehicle: Vehicle) => void;
+  onDeleteVehicle?: (vehicleId: string) => void;
   theme?: 'dark' | 'light';
 }
 
@@ -44,9 +46,14 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   initialVehicle,
   allOwners,
   onSaveVehicle,
+  onDeleteVehicle,
   theme = 'dark',
 }) => {
   const isAdmin = currentUser.role === 'admin';
+  const canDelete = initialVehicle && (
+    currentUser.role === 'admin' || 
+    (currentUser.role === 'vehicle_owner' && initialVehicle.ownerId === currentUser.id)
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -81,10 +88,13 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   const [fuelPct, setFuelPct] = useState<number>(initialVehicle?.fuelOrBatteryPct ?? 90);
 
   // Photos State
-  const [image, setImage] = useState<string>(initialVehicle?.image || '');
+  const [image, setImage] = useState<string>(initialVehicle?.image || '/images/upload_vehicle_photo_1791278597476.jpg');
   const [gallery, setGallery] = useState<string[]>(initialVehicle?.gallery || []);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pendingVehicleData, setPendingVehicleData] = useState<Vehicle | null>(null);
   const [customUrl, setCustomUrl] = useState('');
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
 
   // Status & Owner
   const [status, setStatus] = useState<VehicleStatus>(initialVehicle?.status || 'available');
@@ -239,6 +249,19 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Check if owner has uploaded at least 1 photo
+    const isOwner = currentUser.role === 'vehicle_owner';
+    const isPlaceholderImage = image && (image.includes('upload_car_placeholder') || image.includes('upload_vehicle_photo'));
+    const hasUploadedPhoto = !isPlaceholderImage || gallery.length > 0;
+
+    if (isOwner && !hasUploadedPhoto) {
+      setPhotoUploadError('⚠️ Action Required: Please upload at least 1 real photo of your car (either a custom primary cover photo or an additional angle/interior photo) before confirming!');
+      // Scroll modal body to top to reveal error
+      const formEl = e.currentTarget;
+      formEl.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     const selectedOwner = allOwners.find(o => o.id === selectedOwnerId) || currentUser;
 
     const parsedInput = blockedDatesInput
@@ -286,13 +309,41 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
       },
       odometer: Number(odometer),
       fuelOrBatteryPct: Number(fuelPct),
-      image: image || '/images/suv_premium_black_1790847653822.jpg',
+      image: image || '/images/upload_vehicle_photo_1791278597476.jpg',
       gallery,
       notes: initialVehicle?.notes || 'Car in great condition, ready for rent.',
     };
 
-    onSaveVehicle(vehicleData);
-    onClose();
+    setPendingVehicleData(vehicleData);
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (pendingVehicleData) {
+      onSaveVehicle(pendingVehicleData);
+      
+      // Notify admin about new vehicle listing
+      await EmailService.notifyAdmin({
+        eventTitle: 'New Vehicle Listing Submission',
+        actorName: currentUser.name,
+        actorRole: currentUser.role,
+        actorEmail: currentUser.email,
+        summaryText: `New vehicle submitted for approval: ${pendingVehicleData.make} ${pendingVehicleData.model} (License: ${pendingVehicleData.licensePlate}). Daily Rate: ₹${pendingVehicleData.dailyRate}`,
+        detailsHtml: `
+          <h3>Vehicle Summary</h3>
+          <ul>
+            <li><strong>Car:</strong> ${pendingVehicleData.make} ${pendingVehicleData.model} (${pendingVehicleData.year})</li>
+            <li><strong>License Plate:</strong> ${pendingVehicleData.licensePlate}</li>
+            <li><strong>Category:</strong> ${pendingVehicleData.category}</li>
+            <li><strong>Fuel Type:</strong> ${pendingVehicleData.fuelType}</li>
+            <li><strong>Daily Rate:</strong> ₹${pendingVehicleData.dailyRate}</li>
+            <li><strong>Deposit Amount:</strong> ₹${pendingVehicleData.depositAmount}</li>
+          </ul>
+        `
+      });
+      
+      onClose();
+    }
   };
 
   return (
@@ -324,8 +375,37 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
           </button>
         </div>
 
-        {/* Scrollable Form */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 text-xs text-neutral-300">
+        {/* Scrollable Form or Confirmation View */}
+        {showConfirmation && pendingVehicleData ? (
+          <div className="flex flex-col p-6 overflow-y-auto space-y-6 text-sm text-neutral-300">
+            <h2 className="text-lg font-bold text-white mb-2">Confirm Submission</h2>
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <p><span className="text-neutral-500 text-xs">Car:</span><br /><span className="font-semibold text-white">{pendingVehicleData.make} {pendingVehicleData.model} ({pendingVehicleData.year})</span></p>
+                <p><span className="text-neutral-500 text-xs">Plate:</span><br /><span className="font-semibold text-white">{pendingVehicleData.licensePlate}</span></p>
+                <p><span className="text-neutral-500 text-xs">Category:</span><br /><span className="font-semibold text-white">{pendingVehicleData.category}</span></p>
+                <p><span className="text-neutral-500 text-xs">Daily Rate:</span><br /><span className="font-semibold text-emerald-400">₹{pendingVehicleData.dailyRate}</span></p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowConfirmation(false)}
+                className="px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 font-medium cursor-pointer"
+              >
+                Back to Edit
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSubmit}
+                className="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold transition-colors shadow-lg shadow-emerald-500/20 cursor-pointer"
+              >
+                Confirm & Submit for Approval
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 text-xs text-neutral-300">
           
           {/* SECTION 1: CAR PHOTOS UPLOAD (Owner Photo Upload Feature) */}
           <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-4">
@@ -349,15 +429,13 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
               </div>
             )}
 
-            {/* Main Cover Photo Upload Area */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
-              
-              {/* Photo Preview Box */}
-              <div className="md:col-span-6 space-y-2">
-                <label className="block text-neutral-400 text-[11px] font-medium">
+            {/* Main Cover Photo Upload Area - Centered on Top */}
+            <div className="flex flex-col items-center justify-center space-y-3 pb-4 border-b border-neutral-800/80 w-full">
+              <div className="w-full max-w-xl text-center space-y-2">
+                <label className="block text-neutral-400 text-[11px] font-semibold tracking-wide">
                   Primary Cover Photo
                 </label>
-                <div className="relative group h-44 w-full rounded-xl overflow-hidden border border-neutral-800 bg-neutral-900 flex items-center justify-center">
+                <div className="relative group h-56 sm:h-72 w-full rounded-xl overflow-hidden border border-neutral-800 bg-neutral-900 flex items-center justify-center mx-auto shadow-md">
                   {image ? (
                     <>
                       <img
@@ -369,223 +447,213 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-500 text-neutral-950 text-xs font-bold flex items-center gap-1.5 shadow"
+                          className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-neutral-950 text-xs font-bold flex items-center gap-1.5 shadow-lg transition-colors cursor-pointer"
                         >
                           <Upload className="h-3.5 w-3.5" />
                           <span>Change Photo</span>
                         </button>
                       </div>
-                      <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-neutral-950/80 text-white text-[10px] font-mono border border-neutral-800">
+                      <span className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-neutral-950/80 text-white text-[10px] font-mono border border-neutral-800">
                         Primary Cover
                       </span>
                     </>
                   ) : (
-                    <div className="text-center p-4 text-neutral-500 space-y-1">
-                      <ImageIcon className="h-8 w-8 mx-auto text-neutral-600" />
+                    <div className="text-center p-4 text-neutral-500 space-y-2">
+                      <ImageIcon className="h-10 w-10 mx-auto text-neutral-600" />
                       <p className="text-xs">No primary photo chosen</p>
                     </div>
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Upload Controls & Presets */}
-              <div className="md:col-span-6 space-y-3">
+            {/* Shifted Details to the bottom, in landscape mode */}
+            <div className="space-y-4 pt-2">
+              
+              {/* Hidden File Input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePrimaryPhotoUpload}
+                accept="image/png, image/jpeg, image/webp, image/jpg"
+                className="hidden"
+              />
+
+              {/* Upload & Preset Row (Side-by-side in landscape) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
-                {/* Hidden File Input */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handlePrimaryPhotoUpload}
-                  accept="image/png, image/jpeg, image/webp, image/jpg"
-                  className="hidden"
-                />
+                {/* Upload Action Column with Additional Photos Section */}
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="block text-neutral-400 text-[11px] font-semibold">
+                      Upload from Device
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-dashed border-neutral-800 bg-neutral-900 hover:bg-neutral-800 hover:border-emerald-500 text-neutral-300 font-bold transition-all text-xs cursor-pointer"
+                    >
+                      <Upload className="h-4 w-4 text-emerald-400" />
+                      <span>Upload New Primary Photo</span>
+                    </button>
+                    <p className="text-[10px] text-neutral-500 mt-1">
+                      Supports JPG, PNG, WebP up to 10MB.
+                    </p>
+                  </div>
 
-                {/* Upload Action Button */}
-                <div>
-                  <label className="block text-neutral-400 text-[11px] font-medium mb-1">
-                    Upload from Device
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500 text-emerald-400 font-bold transition-all shadow-sm cursor-pointer"
-                  >
-                    <Upload className="h-4 w-4" />
-                    <span>Choose Car Photo from Computer / Phone</span>
-                  </button>
-                  <p className="text-[10px] text-neutral-500 mt-1">
-                    Supports JPG, PNG, WebP up to 10MB.
-                  </p>
+                  {/* Additional Photos Section - Placed Just Below It */}
+                  <div className="pt-3 border-t border-neutral-800/80 space-y-2">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-neutral-300 font-semibold text-xs">
+                          Additional Photos (Front, Rear, Cabin)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => galleryInputRef.current?.click()}
+                          className="px-2.5 py-1 rounded border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <Upload className="h-3 w-3 text-emerald-400" />
+                          <span>Add Angle</span>
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-neutral-500">
+                        Upload multiple angles to show your car's clean condition.
+                      </p>
+                    </div>
+
+                    <input
+                      type="file"
+                      multiple
+                      ref={galleryInputRef}
+                      onChange={handleGalleryPhotoUpload}
+                      accept="image/png, image/jpeg, image/webp, image/jpg"
+                      className="hidden"
+                    />
+
+                    {/* Gallery Preview Grid */}
+                    {gallery.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        {gallery.map((photoUrl, idx) => (
+                          <div
+                            key={idx}
+                            className="relative group h-20 rounded-lg overflow-hidden border border-neutral-800 bg-neutral-900"
+                          >
+                            <img
+                              src={photoUrl}
+                              alt={`Car angle ${idx + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveGalleryPhoto(idx)}
+                              className="absolute top-1 right-1 p-1 rounded bg-red-600/90 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                              title="Delete photo"
+                            >
+                              <Trash2 className="h-2.5 w-2.5" />
+                            </button>
+                            <span className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-neutral-950/80 text-neutral-300 text-[9px] font-mono">
+                              Angle {idx + 1}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-lg border border-dashed border-neutral-800 text-center text-[10px] text-neutral-500">
+                        No additional angle photos uploaded yet.
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Quick Presets for Instant Selection */}
-                <div>
-                  <label className="block text-neutral-400 text-[11px] font-medium mb-1">
+                <div className="space-y-1">
+                  <label className="block text-neutral-400 text-[11px] font-semibold">
                     Or select standard Indian car photo:
                   </label>
-                  <select
-                    defaultValue=""
-                    onChange={e => {
-                      const selectedVal = e.target.value;
-                      if (selectedVal === 'custom') {
-                        // User chose manual entry
-                        return;
-                      }
-                      if (selectedVal) {
-                        const found = PRESET_CAR_PHOTOS.find(p => p.url === selectedVal);
-                        if (found) {
-                          setImage(found.url);
-                          setCustomUrl('');
-                          setMake(found.make);
-                          setModel(found.model);
-                          setCategory(found.category);
-                          setFuelType(found.fuelType);
-                          if (found.fuelType === 'Electric') {
-                            setEnergyType('ev');
+                  <div className="relative">
+                    <select
+                      defaultValue=""
+                      onChange={e => {
+                        const selectedVal = e.target.value;
+                        if (selectedVal === 'custom') return;
+                        if (selectedVal) {
+                          const found = PRESET_CAR_PHOTOS.find(p => p.url === selectedVal);
+                          if (found) {
+                            setImage(found.url);
+                            setCustomUrl('');
+                            setMake(found.make);
+                            setModel(found.model);
+                            setCategory(found.category);
+                            setFuelType(found.fuelType);
+                            if (found.fuelType === 'Electric') {
+                              setEnergyType('ev');
+                            } else {
+                              setEnergyType('fuel');
+                            }
                           } else {
-                            setEnergyType('fuel');
+                            setImage(selectedVal);
+                            setCustomUrl('');
                           }
-                        } else {
-                          setImage(selectedVal);
-                          setCustomUrl('');
                         }
-                      }
-                    }}
-                    className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white text-xs focus:border-emerald-500 focus:outline-none"
-                  >
-                    <option value="">-- Choose Car Photo Preset --</option>
-                    {PRESET_CAR_PHOTOS.map(p => (
-                      <option key={p.name} value={p.url}>
-                        {p.name}
-                      </option>
-                    ))}
-                    <option value="custom">✏️ Other / Manually Enter Car Name & Photo...</option>
-                  </select>
-                </div>
-
-                {/* Option to Manually Enter the Car Name */}
-                <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-white text-xs font-bold flex items-center gap-1.5">
-                      <Car className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>Manually Enter Car Name:</span>
-                    </label>
-                    <span className="text-[10px] text-emerald-400 font-mono">Custom Brand & Model</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-neutral-400 text-[10px] mb-1">Brand / Company</label>
-                      <input
-                        type="text"
-                        required
-                        value={make}
-                        onChange={e => setMake(e.target.value)}
-                        placeholder="e.g. Maruti, Hyundai, Kia, Tata"
-                        className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-white text-xs placeholder-neutral-500 focus:border-emerald-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-neutral-400 text-[10px] mb-1">Car Model Name</label>
-                      <input
-                        type="text"
-                        required
-                        value={model}
-                        onChange={e => setModel(e.target.value)}
-                        placeholder="e.g. Swift ZXi, Seltos, Creta SX"
-                        className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-white text-xs placeholder-neutral-500 focus:border-emerald-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-neutral-400 leading-tight">
-                    Type your car brand and model name here. This title will be shown on the car rental profile.
-                  </p>
-                </div>
-
-                {/* Custom URL Input */}
-                <div>
-                  <label className="block text-neutral-400 text-[11px] mb-1">
-                    Or paste Image URL:
-                  </label>
-                  <input
-                    type="text"
-                    value={customUrl}
-                    onChange={e => {
-                      setCustomUrl(e.target.value);
-                      if (e.target.value.trim()) setImage(e.target.value.trim());
-                    }}
-                    placeholder="https://... (leave empty to keep the selected photo)"
-                    className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-white text-xs font-mono focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* Additional Angles & Interior Gallery Upload */}
-            <div className="pt-3 border-t border-neutral-800/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="block text-neutral-300 font-semibold text-xs">
-                    Additional Photos (Front, Rear, Side, Interior Cabin)
-                  </label>
-                  <p className="text-[10px] text-neutral-500">
-                    Upload multiple angles to show your car's clean condition.
-                  </p>
-                </div>
-
-                <input
-                  type="file"
-                  multiple
-                  ref={galleryInputRef}
-                  onChange={handleGalleryPhotoUpload}
-                  accept="image/png, image/jpeg, image/webp, image/jpg"
-                  className="hidden"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => galleryInputRef.current?.click()}
-                  className="px-3 py-1.5 rounded-lg border border-neutral-700 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold text-xs flex items-center gap-1.5 transition-colors"
-                >
-                  <Upload className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>+ Add More Angles</span>
-                </button>
-              </div>
-
-              {/* Gallery Preview Grid */}
-              {gallery.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
-                  {gallery.map((photoUrl, idx) => (
-                    <div
-                      key={idx}
-                      className="relative group h-24 rounded-lg overflow-hidden border border-neutral-800 bg-neutral-900"
+                      }}
+                      className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-3 text-white text-xs focus:border-emerald-500 focus:outline-none"
                     >
-                      <img
-                        src={photoUrl}
-                        alt={`Car angle ${idx + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveGalleryPhoto(idx)}
-                        className="absolute top-1.5 right-1.5 p-1 rounded-md bg-red-600/90 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                        title="Delete photo"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                      <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-neutral-950/80 text-neutral-300 text-[9px] font-mono">
-                        Angle {idx + 1}
-                      </span>
-                    </div>
-                  ))}
+                      <option value="">-- Choose Car Photo Preset --</option>
+                      {PRESET_CAR_PHOTOS.map(p => (
+                        <option key={p.name} value={p.url}>
+                          {p.name}
+                        </option>
+                      ))}
+                      <option value="custom">✏️ Other / Manually Enter Car Name & Photo...</option>
+                    </select>
+                  </div>
+                  <p className="text-[10px] text-neutral-500 mt-1">
+                    Instant high-fidelity vehicle model setup.
+                  </p>
                 </div>
-              ) : (
-                <div className="p-3 rounded-lg border border-dashed border-neutral-800 text-center text-[11px] text-neutral-500">
-                  No additional angle photos uploaded yet. Click "+ Add More Angles" to upload rear, side, or dashboard photos.
+
+              </div>
+
+              {/* Option to Manually Enter the Car Name - Full-Width Landscape */}
+              <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-4 space-y-3 pt-3 mt-2">
+                <div className="flex items-center justify-between border-b border-neutral-800/80 pb-2">
+                  <label className="text-white text-xs font-bold flex items-center gap-1.5">
+                    <Car className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Manually Enter Car Name:</span>
+                  </label>
+                  <span className="text-[10px] text-emerald-400 font-mono">Custom Brand & Model</span>
                 </div>
-              )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-neutral-400 text-[10px] mb-1">Brand / Company</label>
+                    <input
+                      type="text"
+                      required
+                      value={make}
+                      onChange={e => setMake(e.target.value)}
+                      placeholder="e.g. Maruti, Hyundai, Kia, Tata"
+                      className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white text-xs placeholder-neutral-500 focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-400 text-[10px] mb-1">Car Model Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={model}
+                      onChange={e => setModel(e.target.value)}
+                      placeholder="e.g. Swift ZXi, Seltos, Creta SX"
+                      className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white text-xs placeholder-neutral-500 focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-neutral-400 leading-tight">
+                  Type your car brand and model name here. This title will be shown on the car rental profile.
+                </p>
+              </div>
+
             </div>
 
           </div>
@@ -1201,23 +1269,64 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold transition-colors shadow-lg shadow-emerald-500/20"
-            >
-              {initialVehicle ? 'Save Changes' : (isAdmin ? 'Add Car' : 'Submit Car for Approval')}
-            </button>
+          <div className="flex items-center justify-between pt-3 border-t border-neutral-800">
+            {canDelete ? (
+              confirmDelete ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-red-400 text-xs font-semibold">Are you sure?</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onDeleteVehicle && initialVehicle) {
+                        onDeleteVehicle(initialVehicle.id);
+                        onClose();
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    Yes, Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(false)}
+                    className="px-3 py-1.5 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 text-xs font-medium cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Delete Listing</span>
+                </button>
+              )
+            ) : (
+              <div />
+            )}
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 font-medium cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold transition-colors shadow-lg shadow-emerald-500/20 cursor-pointer"
+              >
+                {initialVehicle ? 'Save Changes' : (isAdmin ? 'Add Car' : 'Submit Car for Approval')}
+              </button>
+            </div>
           </div>
 
         </form>
+        )}
 
       </div>
     </div>

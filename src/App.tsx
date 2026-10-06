@@ -372,14 +372,16 @@ export default function App() {
     const target = vehicles.find(v => v.id === vehicleId);
     await RentalStorageService.deleteVehicle(vehicleId);
     if (target) {
+      const actorRole = currentUser?.role || 'admin';
+      const actorRoleName = actorRole === 'admin' ? 'Admin' : 'Car Owner';
       await RentalStorageService.logAudit({
         category: 'VEHICLE',
         action: 'Vehicle Removed from Platform',
-        summary: `${target.make} ${target.model} (${target.licensePlate}) removed by Admin.`,
+        summary: `${target.make} ${target.model} (${target.licensePlate}) removed by ${actorRoleName}.`,
         actor: {
           id: currentUser?.id || 'admin',
           name: currentUser?.name || 'Admin',
-          role: 'admin',
+          role: actorRole,
         },
         vehiclePlate: target.licensePlate,
         severity: 'warning',
@@ -1182,6 +1184,7 @@ export default function App() {
           initialVehicle={editingVehicleTarget}
           allOwners={allOwners}
           onSaveVehicle={handleSaveVehicle}
+          onDeleteVehicle={handleDeleteVehicle}
           theme={theme}
         />
       )}
