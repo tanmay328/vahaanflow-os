@@ -7,9 +7,7 @@ const app: FirebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) 
 
 export const auth: Auth = getAuth(app);
 
-export const db: Firestore = (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)')
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(app);
+export const db: Firestore = getFirestore(app);
 
 // Critical constraint: Validate connection on initial boot
 export async function testFirestoreConnection(): Promise<boolean> {

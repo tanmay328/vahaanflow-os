@@ -1,8 +1,8 @@
 # VahaanFlow OS — Simplified Two-Role Developer Manual & System Architecture
 
 **Version:** 3.0.0 (Simplified Two-Role Edition)  
-**Database ID:** `ai-studio-vehiclerentalsys-15d7931e-0e5f-4e76-bff0-d41e2603efb5`  
-**Project ID:** `crested-dream-fkx2q`  
+**Database ID:** `(default)`  
+**Project ID:** `godrive-923da`  
 
 ---
 

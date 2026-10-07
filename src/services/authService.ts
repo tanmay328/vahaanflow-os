@@ -6,7 +6,9 @@ import {
   createUserWithEmailAndPassword, 
   sendPasswordResetEmail,
   signOut, 
-  onAuthStateChanged
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { 
   doc, 
@@ -139,6 +141,12 @@ export class AuthService {
         };
       }
 
+      // Dispatch sign-in alert email
+      EmailService.sendLoginNotification({
+        userName: userProfile.name,
+        role: userProfile.role,
+      }).catch(err => console.warn('Login notification email dispatch notice:', err));
+
       return { success: true, user: userProfile };
     } catch (err: any) {
       const code = err.code || '';
@@ -157,6 +165,108 @@ export class AuthService {
       return {
         success: false,
         error: err.message || 'Login failed. Please check your credentials.',
+      };
+    }
+  }
+
+  // Google Sign-In & Sign-Up via Firebase Auth
+  static async loginWithGoogle(
+    targetRole: 'vehicle_owner' | 'renter' = 'renter',
+    extraData?: {
+      phone?: string;
+      upiId?: string;
+      drivingLicense?: string;
+    }
+  ): Promise<{ success: boolean; user?: UserProfile; isNewUser?: boolean; error?: string }> {
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const cred = await signInWithPopup(auth, provider);
+      const fbUser = cred.user;
+      const uid = fbUser.uid;
+      const email = (fbUser.email || '').trim().toLowerCase();
+      const name = fbUser.displayName?.trim() || email.split('@')[0] || 'Google User';
+      const phone = extraData?.phone && extraData.phone.trim() !== '+91' ? extraData.phone.trim() : (fbUser.phoneNumber || '+91 ');
+
+      const userDocRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userDocRef);
+
+      if (userSnap.exists()) {
+        const userProfile = userSnap.data() as UserProfile;
+        userProfile.id = userSnap.id;
+
+        // Check suspension immediately
+        const isSuspended = userProfile.approvalStatus === 'suspended' || userProfile.ownerDetails?.approvalStatus === 'suspended';
+        if (isSuspended) {
+          await signOut(auth);
+          const reason = userProfile.suspensionReason || 'Account suspended by platform administrator.';
+          return {
+            success: false,
+            error: `Your account has been suspended by the admin. Reason: ${reason}. Please contact support to restore access.`,
+          };
+        }
+
+        // Dispatch sign-in alert email for existing user
+        EmailService.sendLoginNotification({
+          userName: userProfile.name,
+          role: userProfile.role,
+        }).catch(err => console.warn('Google login notification email dispatch notice:', err));
+
+        return { success: true, user: userProfile, isNewUser: false };
+      }
+
+      // Brand New User: Create User Profile in Firestore
+      const assignedRole: UserRole = targetRole === 'vehicle_owner' ? 'vehicle_owner' : 'renter';
+      const newUser: UserProfile = {
+        id: uid,
+        name,
+        email,
+        phone,
+        role: assignedRole,
+        activeViewMode: assignedRole,
+        approvalStatus: 'approved',
+        createdAt: new Date().toISOString(),
+        ownerDetails: assignedRole === 'vehicle_owner' ? {
+          upiId: extraData?.upiId || `${email.split('@')[0]}@okaxis`,
+          bankAccount: '',
+          bankIfsc: '',
+          approvalStatus: 'approved',
+          payoutBalance: 0,
+          totalEarned: 0,
+          joinedDate: new Date().toISOString().split('T')[0],
+        } : undefined,
+        renterDetails: {
+          drivingLicense: extraData?.drivingLicense?.trim() || `DL-${Math.floor(100000000000000 + Math.random() * 900000000000000)}`,
+          aadhaarMasked: `XXXX-XXXX-${Math.floor(1000 + Math.random() * 9000)}`,
+          kycStatus: 'verified',
+        },
+      };
+
+      await setDoc(userDocRef, cleanForFirestore(newUser));
+
+      // Dispatch Welcome Email
+      EmailService.sendWelcomeEmail({
+        name: newUser.name,
+        role: newUser.role,
+        phone: newUser.phone,
+        upiId: newUser.ownerDetails?.upiId,
+        drivingLicense: newUser.renterDetails?.drivingLicense,
+      }).catch(err => console.warn('Welcome email dispatch notice:', err));
+
+      return { success: true, user: newUser, isNewUser: true };
+    } catch (err: any) {
+      if (err.code === 'auth/popup-closed-by-user') {
+        return { success: false, error: 'Google sign-in popup was closed before completing.' };
+      }
+      if (err.code === 'auth/cancelled-popup-request') {
+        return { success: false, error: 'Sign-in request was cancelled.' };
+      }
+      if (err.code === 'auth/popup-blocked') {
+        return { success: false, error: 'The Google sign-in popup was blocked by your browser. Please allow popups for this site and try again.' };
+      }
+      return {
+        success: false,
+        error: err.message || 'Google sign-in failed. Please try again.',
       };
     }
   }

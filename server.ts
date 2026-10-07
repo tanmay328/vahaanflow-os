@@ -4,6 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import cron from 'node-cron';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -17,24 +18,25 @@ const __dirname = path.dirname(__filename);
 // Initialize Firebase Admin SDK if not already initialized
 if (!getApps().length) {
   const saKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (saKey) {
-    try {
-      const parsed = typeof saKey === 'string' && saKey.trim().startsWith('{')
-        ? JSON.parse(saKey)
-        : saKey;
-      initializeApp({
-        credential: cert(parsed),
-        projectId: firebaseConfig.projectId,
-      });
-      console.log('✅ Firebase Admin SDK initialized with FIREBASE_SERVICE_ACCOUNT_KEY');
-    } catch (e: any) {
-      console.warn('⚠️ Could not parse FIREBASE_SERVICE_ACCOUNT_KEY, falling back to default:', e.message);
-      initializeApp({ projectId: firebaseConfig.projectId });
-    }
-  } else {
+  if (!saKey) {
+    console.error('❌ Error: FIREBASE_SERVICE_ACCOUNT_KEY environment variable is missing. Server-side Firebase operations will not have admin credentials.');
     initializeApp({
       projectId: firebaseConfig.projectId,
     });
+  } else {
+    try {
+      const parsedKey = typeof saKey === 'string' ? JSON.parse(saKey) : saKey;
+      initializeApp({
+        credential: cert(parsedKey),
+        projectId: firebaseConfig.projectId,
+      });
+      console.log('✅ Firebase Admin SDK initialized with FIREBASE_SERVICE_ACCOUNT_KEY for project:', firebaseConfig.projectId);
+    } catch (e: any) {
+      console.error('❌ Error: FIREBASE_SERVICE_ACCOUNT_KEY contains invalid JSON:', e.message);
+      initializeApp({
+        projectId: firebaseConfig.projectId,
+      });
+    }
   }
 }
 
@@ -273,6 +275,99 @@ app.post('/api/auth/send-welcome-email', authenticateFirebaseToken, checkEmailCo
   } catch (error: any) {
     console.error('❌ Error sending welcome email:', error);
     return res.status(500).json({ success: false, error: error.message || 'Failed to send welcome email' });
+  }
+});
+
+// 1.5. Sign-in Alert / Notification Email API (recipient fixed to verified user email)
+app.post('/api/auth/send-login-notification', authenticateFirebaseToken, checkEmailConfig, emailRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return res.status(400).json({ success: false, error: 'Authenticated user email not found.' });
+    }
+
+    const { userName, role } = req.body;
+    const safeName = escapeHtml(userName || req.user?.name || 'Valued User');
+    const safeRole = escapeHtml(role === 'vehicle_owner' ? 'Car Owner' : (role === 'admin' ? 'Platform Administrator' : 'Customer (Renter)'));
+    const safeEmail = escapeHtml(userEmail);
+
+    // Format login time in Asia/Kolkata
+    const loginTime = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      dateStyle: 'full',
+      timeStyle: 'medium',
+    }).format(new Date());
+
+    const subject = sanitizeSubject(`GoDrive Security: New sign-in to your account`);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5; margin: 0; padding: 20px; }
+          .container { max-width: 560px; margin: 0 auto; background-color: #171717; border-radius: 16px; border: 1px solid #262626; overflow: hidden; }
+          .header { background: linear-gradient(135deg, #059669 0%, #0d9488 100%); padding: 28px 24px; text-align: center; color: #ffffff; }
+          .header h1 { margin: 0; font-size: 22px; font-weight: 800; }
+          .header p { margin: 4px 0 0 0; font-size: 13px; opacity: 0.9; }
+          .content { padding: 24px; }
+          .box { background-color: #262626; border-radius: 12px; padding: 18px; margin: 18px 0; border: 1px solid #404040; }
+          .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+          .label { color: #a3a3a3; }
+          .val { color: #ffffff; font-weight: 600; }
+          .alert-box { background-color: rgba(6, 78, 59, 0.2); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 14px; margin-top: 18px; font-size: 12px; color: #a7f3d0; line-height: 1.5; }
+          .footer { padding: 18px 24px; text-align: center; font-size: 11px; color: #737373; border-top: 1px solid #262626; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>New Sign-in Notice</h1>
+            <p>GoDrive Account Security Alert</p>
+          </div>
+          <div class="content">
+            <p style="font-size: 14px; margin-top: 0;">Hello <strong>${safeName}</strong>,</p>
+            <p style="font-size: 13px; color: #d4d4d4; line-height: 1.5;">
+              You have successfully signed in to your <strong>GoDrive</strong> account.
+            </p>
+            <div class="box">
+              <div class="row">
+                <span class="label">Account Email:</span>
+                <span class="val">${safeEmail}</span>
+              </div>
+              <div class="row">
+                <span class="label">Account Role:</span>
+                <span class="val" style="color: #34d399;">${safeRole}</span>
+              </div>
+              <div class="row" style="margin-bottom: 0;">
+                <span class="label">Sign-in Time (IST):</span>
+                <span class="val">${escapeHtml(loginTime)}</span>
+              </div>
+            </div>
+            <div class="alert-box">
+              🔒 <strong>Security Note:</strong> If this was you, you can safely disregard this email. If you did not sign in or suspect unauthorized activity, please change your password immediately or contact GoDrive support.
+            </div>
+          </div>
+          <div class="footer">
+            Sent by <strong>${escapeHtml(SENDER_NAME)}</strong> · Account Security Notification
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const info = await transporter!.sendMail({
+      from: `"${SENDER_NAME}" <${SMTP_USER}>`,
+      to: userEmail,
+      subject,
+      html,
+    });
+
+    return res.json({ success: true, messageId: info.messageId });
+  } catch (error: any) {
+    console.error('❌ Error sending sign-in notification email:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Failed to send sign-in notification email' });
   }
 });
 
@@ -778,7 +873,7 @@ app.post('/api/admin/reset-dummy-users', authenticateFirebaseToken, async (req: 
     }
 
     const auth = getAuth();
-    const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+    const db = getFirestore();
 
     // Fetch caller profile to verify they are admin
     const callerSnap = await db.collection('users').doc(req.user!.uid).get();
@@ -1027,7 +1122,7 @@ export function formatFirestoreAdminError(err: any): string {
     err?.code === 7 || 
     msg.includes('Missing or insufficient permissions')
   ) {
-    return 'Permission Denied: Firebase Admin SDK lacks server credentials. The server requires FIREBASE_SERVICE_ACCOUNT_KEY or Cloud IAM role "Cloud Datastore User" on GCP project crested-dream-fkx2q to read Firestore documents.';
+    return 'Permission Denied: Firebase Admin SDK lacks server credentials. The server requires FIREBASE_SERVICE_ACCOUNT_KEY or Cloud IAM role "Cloud Datastore User" on GCP project godrive-923da to read Firestore documents.';
   }
   return msg;
 }
@@ -1042,7 +1137,7 @@ export async function runServiceReminders(): Promise<{
   error?: string;
 }> {
   const todayStr = getKolkataDateString();
-  const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+  const db = getFirestore();
 
   try {
     const snap = await db.collection('serviceReminders').where('paused', '==', false).get();
@@ -1274,7 +1369,7 @@ app.post('/api/cron/run-service-reminders', async (req: Request, res: Response) 
 // (b) Admin Endpoints: Send test reminder mail (supports single reminder, on-the-fly vehicle testing, and all reminder types)
 app.post('/api/admin/service-reminders/test', authenticateFirebaseToken, emailRateLimiter, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+    const db = getFirestore();
 
     // Verify admin role via users collection
     const callerSnap = await db.collection('users').doc(req.user!.uid).get();
@@ -1455,7 +1550,7 @@ app.post('/api/admin/service-reminders/test', authenticateFirebaseToken, emailRa
 // (c) Admin Endpoints: Run today's checks now
 app.post('/api/admin/service-reminders/run', authenticateFirebaseToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+    const db = getFirestore();
     const callerSnap = await db.collection('users').doc(req.user!.uid).get();
     if (!callerSnap.exists || callerSnap.data()?.role !== 'admin') {
       return res.status(403).json({ success: false, error: 'Forbidden: Admin privileges required.' });
@@ -1472,29 +1567,29 @@ app.post('/api/admin/service-reminders/run', authenticateFirebaseToken, async (r
   }
 });
 
-// In-process scheduler: Runs once at ~8:00 AM India time every day
-function startDailyServiceReminderScheduler() {
-  let lastRunKolkataDate = '';
-  // Check every 15 minutes
-  setInterval(async () => {
+// Automated Cronjob: Runs every day at 08:00 AM India Time (Asia/Kolkata)
+const serviceReminderCronJob = cron.schedule(
+  '0 8 * * *',
+  async () => {
+    const todayStr = getKolkataDateString();
+    console.log(`⏰ [CronJob] Starting scheduled daily service reminders check for ${todayStr} at 08:00 AM IST...`);
     try {
-      const now = new Date();
-      const kolkataDate = getKolkataDateString(now);
-      const kolkataHour = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', hour: 'numeric', hour12: false }).format(now));
-
-      if (kolkataHour === 8 && lastRunKolkataDate !== kolkataDate) {
-        lastRunKolkataDate = kolkataDate;
-        console.log(`⏰ [Daily Scheduler] Running 8:00 AM India time service reminders for date: ${kolkataDate}`);
-        const result = await runServiceReminders();
-        console.log(`⏰ [Daily Scheduler] Result: sent=${result.mailsSent}, skipped=${result.skippedCount}`);
+      const result = await runServiceReminders();
+      if (result.success) {
+        console.log(`✅ [CronJob] Daily reminders check completed for ${todayStr}: Processed=${result.processedCount}, Sent=${result.mailsSent}, Skipped=${result.skippedCount}`);
+      } else {
+        console.warn(`⚠️ [CronJob] Daily reminders check returned notice for ${todayStr}:`, result.error);
       }
-    } catch (schedErr: any) {
-      console.error('⏰ [Daily Scheduler] Error in scheduled run:', schedErr.message);
+    } catch (cronErr: any) {
+      console.error(`❌ [CronJob] Unhandled error during scheduled reminders run:`, cronErr.message || cronErr);
     }
-  }, 15 * 60 * 1000);
-}
+  },
+  {
+    timezone: 'Asia/Kolkata',
+  }
+);
 
-startDailyServiceReminderScheduler();
+console.log('🕒 [CronJob] Automated service reminder cronjob scheduled to run daily at 08:00 AM (Asia/Kolkata)');
 
 // Vite Development or Static Production Middleware
 async function startServer() {

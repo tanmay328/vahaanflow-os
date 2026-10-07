@@ -1,12 +1,12 @@
 {
-  "projectId": "crested-dream-fkx2q",
-  "appId": "1:920464648432:web:a5f3e35dd6a128ea7d7a35",
-  "apiKey": "AIzaSyB2nGHh7F7CZhG0FpCjnvkVj-G9Aa5Hd00",
-  "authDomain": "crested-dream-fkx2q.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-vehiclerentalsys-15d7931e-0e5f-4e76-bff0-d41e2603efb5",
-  "storageBucket": "crested-dream-fkx2q.firebasestorage.app",
-  "messagingSenderId": "920464648432",
+  "projectId": "godrive-923da",
+  "appId": "PASTE_HERE",
+  "apiKey": "PASTE_HERE",
+  "authDomain": "PASTE_HERE",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "PASTE_HERE",
+  "messagingSenderId": "PASTE_HERE",
   "measurementId": "",
-  "oAuthClientId": "920464648432-0t2tde8k36r1g9u356qotfdjl4jfuqk2.apps.googleusercontent.com",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

@@ -47,6 +47,23 @@ export class EmailService {
     }
   }
 
+  // Send Login Notification / Security Alert Email
+  static async sendLoginNotification(params: { userName?: string; role?: string }): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const res = await fetch('/api/auth/send-login-notification', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(params),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      console.warn('Sign-in notification email fetch failed:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
   // Send Password Updated Confirmation Email
   static async sendPasswordUpdatedConfirmation(userName?: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {

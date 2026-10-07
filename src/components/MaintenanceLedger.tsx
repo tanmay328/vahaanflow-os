@@ -1535,7 +1535,7 @@ export const MaintenanceLedger: React.FC<MaintenanceLedgerProps> = ({
               <div className="text-[11px] text-amber-300 bg-amber-950/40 p-2.5 rounded-lg border border-amber-500/30 space-y-1">
                 <strong className="block text-amber-200">Server Credential Setup Required:</strong>
                 <p className="text-[10px] leading-relaxed text-neutral-300">
-                  The backend server reads Firestore via the Firebase Admin SDK, which requires Google Cloud IAM permissions. Add your service account key as a secret named <code className="text-amber-200 bg-neutral-900 px-1 py-0.5 rounded">FIREBASE_SERVICE_ACCOUNT_KEY</code> or grant the Cloud Run runtime service account the <strong>Cloud Datastore User</strong> role on project <code className="text-amber-200 bg-neutral-900 px-1 py-0.5 rounded">crested-dream-fkx2q</code>.
+                  The backend server reads Firestore via the Firebase Admin SDK, which requires Google Cloud IAM permissions. Add your service account key as a secret named <code className="text-amber-200 bg-neutral-900 px-1 py-0.5 rounded">FIREBASE_SERVICE_ACCOUNT_KEY</code> or grant the Cloud Run runtime service account the <strong>Cloud Datastore User</strong> role on project <code className="text-amber-200 bg-neutral-900 px-1 py-0.5 rounded">godrive-923da</code>.
                 </p>
               </div>
             )}
@@ -1623,7 +1623,7 @@ export const MaintenanceLedger: React.FC<MaintenanceLedgerProps> = ({
                       <div className="mt-2 text-[11px] text-amber-300 bg-amber-950/40 p-2.5 rounded-lg border border-amber-500/30 space-y-1">
                         <strong className="block text-amber-200">Server Credential Setup Required:</strong>
                         <p className="text-[10px] leading-relaxed text-neutral-300">
-                          The backend server reads Firestore via the Firebase Admin SDK, which requires Google Cloud IAM permissions. Add your service account key as a secret named <code className="text-amber-200 bg-neutral-900 px-1 py-0.5 rounded">FIREBASE_SERVICE_ACCOUNT_KEY</code> or grant the Cloud Run runtime service account the <strong>Cloud Datastore User</strong> role on project <code className="text-amber-200 bg-neutral-900 px-1 py-0.5 rounded">crested-dream-fkx2q</code>.
+                          The backend server reads Firestore via the Firebase Admin SDK, which requires Google Cloud IAM permissions. Add your service account key as a secret named <code className="text-amber-200 bg-neutral-900 px-1 py-0.5 rounded">FIREBASE_SERVICE_ACCOUNT_KEY</code> or grant the Cloud Run runtime service account the <strong>Cloud Datastore User</strong> role on project <code className="text-amber-200 bg-neutral-900 px-1 py-0.5 rounded">godrive-923da</code>.
                         </p>
                       </div>
                     )}
