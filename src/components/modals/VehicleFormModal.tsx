@@ -114,6 +114,12 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>(
     initialVehicle?.ownerId || (isAdmin ? (allOwners[0]?.id || currentUser.id) : currentUser.id)
   );
+  const [ownerName, setOwnerName] = useState<string>(
+    initialVehicle?.ownerName || (allOwners.find(o => o.id === (initialVehicle?.ownerId || allOwners[0]?.id))?.name || currentUser.name)
+  );
+  const [ownerEmail, setOwnerEmail] = useState<string>(
+    initialVehicle?.ownerEmail || (allOwners.find(o => o.id === (initialVehicle?.ownerId || allOwners[0]?.id))?.email || currentUser.email)
+  );
 
   // Pricing & Allowances
   const [dailyRate, setDailyRate] = useState<number>(initialVehicle?.dailyRate || 3500);
@@ -275,7 +281,10 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
       return;
     }
 
-    const selectedOwner = allOwners.find(o => o.id === selectedOwnerId) || currentUser;
+    const matchedOwner = allOwners.find(o => o.id === selectedOwnerId || o.name.toLowerCase() === ownerName.trim().toLowerCase());
+    const finalOwnerId = isAdmin ? (matchedOwner?.id || selectedOwnerId || currentUser.id) : currentUser.id;
+    const finalOwnerName = isAdmin ? (ownerName.trim() || matchedOwner?.name || currentUser.name) : currentUser.name;
+    const finalOwnerEmail = isAdmin ? (ownerEmail.trim() || matchedOwner?.email || currentUser.email) : currentUser.email;
 
     const parsedInput = blockedDatesInput
       .split(',')
@@ -285,9 +294,9 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
 
     const vehicleData: Vehicle = {
       id: initialVehicle?.id || `veh-${Date.now()}`,
-      ownerId: isAdmin ? selectedOwner.id : currentUser.id,
-      ownerName: isAdmin ? selectedOwner.name : currentUser.name,
-      ownerEmail: isAdmin ? selectedOwner.email : currentUser.email,
+      ownerId: finalOwnerId,
+      ownerName: finalOwnerName,
+      ownerEmail: finalOwnerEmail,
       approvalStatus: isAdmin ? 'approved' : (initialVehicle?.approvalStatus || 'pending_approval'),
       status: isAdmin ? status : (initialVehicle?.status || 'available'),
       make: make.trim(),
@@ -1200,18 +1209,46 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-neutral-400 mb-1">Car Owner</label>
-                  <select
-                    value={selectedOwnerId}
-                    onChange={e => setSelectedOwnerId(e.target.value)}
-                    className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
-                  >
-                    {allOwners.map(o => (
-                      <option key={o.id} value={o.id}>
-                        {o.name} ({o.email})
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-neutral-400 mb-1 text-xs">Car Owner Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={ownerName}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setOwnerName(val);
+                      const matched = allOwners.find(o => o.name.toLowerCase() === val.trim().toLowerCase());
+                      if (matched) {
+                        setSelectedOwnerId(matched.id);
+                        if (matched.email) setOwnerEmail(matched.email);
+                      }
+                    }}
+                    placeholder="Enter owner name (e.g. Rahul Sharma)"
+                    className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-white focus:border-emerald-500 focus:outline-none text-xs placeholder:text-neutral-600"
+                  />
+                  {allOwners.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="text-[10px] text-neutral-500">Quick Select:</span>
+                      {allOwners.map(o => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedOwnerId(o.id);
+                            setOwnerName(o.name);
+                            if (o.email) setOwnerEmail(o.email);
+                          }}
+                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+                            ownerName === o.name
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : 'bg-neutral-900 text-neutral-400 border-neutral-800 hover:text-white hover:bg-neutral-800'
+                          }`}
+                        >
+                          {o.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>

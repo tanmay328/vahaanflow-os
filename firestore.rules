@@ -31,7 +31,11 @@ service cloud.firestore {
       allow create: if isSignedIn() 
         && request.auth.uid == userId
         && request.resource.data.id == userId
-        && (request.resource.data.role == 'vehicle_owner' || request.resource.data.role == 'renter')
+        && (
+          request.resource.data.role == 'vehicle_owner' 
+          || request.resource.data.role == 'renter'
+          || (request.resource.data.role == 'admin' && request.auth.token.email == 'tanmayrajaura28@gmail.com')
+        )
         && request.resource.data.approvalStatus != 'suspended';
 
       allow update: if isAdmin() || (

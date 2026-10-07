@@ -222,10 +222,11 @@ export class AuthService {
       }
 
       // Brand New User: Create User Profile in Firestore
-      const assignedRole: UserRole = targetRole === 'vehicle_owner' ? 'vehicle_owner' : 'renter';
+      const isAdminEmail = email.toLowerCase() === 'tanmayrajaura28@gmail.com';
+      const assignedRole: UserRole = isAdminEmail ? 'admin' : (targetRole === 'vehicle_owner' ? 'vehicle_owner' : 'renter');
       const newUser: UserProfile = {
         id: uid,
-        name,
+        name: isAdminEmail ? 'Tanmay Rajaura (Platform Admin)' : name,
         email,
         phone,
         role: assignedRole,

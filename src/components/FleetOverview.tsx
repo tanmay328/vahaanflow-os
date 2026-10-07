@@ -154,6 +154,18 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({
             {isNormalUserMode && 'Browse all verified cars available for your trip.'}
           </p>
         </div>
+
+        {isAdmin && (
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              onClick={onAddNewVehicle}
+              className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Car</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filters Bar - only displayed when cars exist */}
