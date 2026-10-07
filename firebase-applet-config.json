@@ -1,12 +1,12 @@
 {
   "projectId": "godrive-923da",
-  "appId": "PASTE_HERE",
-  "apiKey": "PASTE_HERE",
-  "authDomain": "PASTE_HERE",
+  "appId": "1:872512293641:web:a98cd02a5a7c925fc661d8",
+  "apiKey": "AIzaSyADJgc66cXX0V8JFJhBKbN8rxktKoMVejA",
+  "authDomain": "godrive-923da.firebaseapp.com",
   "firestoreDatabaseId": "(default)",
-  "storageBucket": "PASTE_HERE",
-  "messagingSenderId": "PASTE_HERE",
-  "measurementId": "",
+  "storageBucket": "godrive-923da.firebasestorage.app",
+  "messagingSenderId": "872512293641",
+  "measurementId": "G-GNNPCT240Q",
   "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }
