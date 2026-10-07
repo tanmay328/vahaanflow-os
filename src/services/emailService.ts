@@ -81,6 +81,23 @@ export class EmailService {
     }
   }
 
+  // Send Vehicle Listing Submission Summary Email (with finalized rates and full services)
+  static async sendVehicleSubmissionSummary(params: { vehicle: any }): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const res = await fetch('/api/vehicles/send-submission-summary', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(params),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      console.warn('Vehicle submission summary email fetch error:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
   // Send Admin Notification Email
   static async notifyAdmin(params: {
     eventTitle: string;

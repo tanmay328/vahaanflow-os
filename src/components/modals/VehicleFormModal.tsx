@@ -15,7 +15,18 @@ import {
   Sparkles,
   Camera,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Mail,
+  ShieldCheck,
+  Check,
+  Loader2,
+  IndianRupee,
+  Fuel,
+  Gauge,
+  Users,
+  MapPin,
+  Info,
+  CalendarDays
 } from 'lucide-react';
 import { EmailService } from '../../services/emailService';
 
@@ -92,6 +103,8 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   const [gallery, setGallery] = useState<string[]>(initialVehicle?.gallery || []);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingVehicleData, setPendingVehicleData] = useState<Vehicle | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitFeedback, setSubmitFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [customUrl, setCustomUrl] = useState('');
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<boolean>(false);
@@ -286,9 +299,9 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
       transmission,
       fuelType,
       seatingCapacity: Number(seatingCapacity),
-      dailyRate: isAdmin ? Number(dailyRate) : (initialVehicle?.dailyRate || Number(suggestedDailyRate)),
-      suggestedDailyRate: Number(suggestedDailyRate),
-      hourlyRate: Math.round(Number(dailyRate) / 8),
+      dailyRate: isAdmin ? Number(dailyRate) : Number(suggestedDailyRate || dailyRate),
+      suggestedDailyRate: Number(suggestedDailyRate || dailyRate),
+      hourlyRate: Math.max(150, Math.round((isAdmin ? Number(dailyRate) : Number(suggestedDailyRate || dailyRate)) / 8)),
       kmAllowancePerDay: Number(kmAllowance),
       excessKmRate: Number(excessKmRate),
       depositAmount: Number(depositAmount),
@@ -319,29 +332,62 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
   };
 
   const handleConfirmSubmit = async () => {
-    if (pendingVehicleData) {
+    if (!pendingVehicleData || isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitFeedback(null);
+
+    try {
+      // 1. Commit vehicle data to parent handler (Firestore & local state)
       onSaveVehicle(pendingVehicleData);
-      
-      // Notify admin about new vehicle listing
+
+      // 2. Mail the full service & finalized rates to the owner (and admin copy)
+      const mailRes = await EmailService.sendVehicleSubmissionSummary({
+        vehicle: pendingVehicleData,
+      });
+
+      // 3. Notify admin operations
       await EmailService.notifyAdmin({
-        eventTitle: 'New Vehicle Listing Submission',
+        eventTitle: 'Vehicle Listing Submission & Finalized Rates',
         actorName: currentUser.name,
         actorRole: currentUser.role,
         actorEmail: currentUser.email,
-        summaryText: `New vehicle submitted for approval: ${pendingVehicleData.make} ${pendingVehicleData.model} (License: ${pendingVehicleData.licensePlate}). Daily Rate: ₹${pendingVehicleData.dailyRate}`,
+        summaryText: `Vehicle submitted: ${pendingVehicleData.make} ${pendingVehicleData.model} (${pendingVehicleData.licensePlate}). Finalized rate: ₹${pendingVehicleData.dailyRate}/day by ${currentUser.name}. Full summary email sent to ${currentUser.email || pendingVehicleData.ownerEmail}.`,
         detailsHtml: `
-          <h3>Vehicle Summary</h3>
+          <h3>Vehicle Listing Summary & Rates</h3>
           <ul>
             <li><strong>Car:</strong> ${pendingVehicleData.make} ${pendingVehicleData.model} (${pendingVehicleData.year})</li>
             <li><strong>License Plate:</strong> ${pendingVehicleData.licensePlate}</li>
             <li><strong>Category:</strong> ${pendingVehicleData.category}</li>
-            <li><strong>Fuel Type:</strong> ${pendingVehicleData.fuelType}</li>
-            <li><strong>Daily Rate:</strong> ₹${pendingVehicleData.dailyRate}</li>
+            <li><strong>Fuel:</strong> ${pendingVehicleData.fuelType}</li>
+            <li><strong>Daily Rate (Finalized):</strong> ₹${pendingVehicleData.dailyRate}</li>
+            <li><strong>Hourly Rate:</strong> ₹${pendingVehicleData.hourlyRate}</li>
             <li><strong>Deposit Amount:</strong> ₹${pendingVehicleData.depositAmount}</li>
+            <li><strong>City & Hub:</strong> ${pendingVehicleData.currentLocation.hubName}, ${pendingVehicleData.currentLocation.city}</li>
+            <li><strong>Owner:</strong> ${currentUser.name} (${currentUser.email})</li>
           </ul>
         `
       });
-      
+
+      if (mailRes.success) {
+        setSubmitFeedback({
+          type: 'success',
+          message: `Submission confirmed! Full service summary and finalized rates (₹${pendingVehicleData.dailyRate}/day) mailed to ${currentUser.email || pendingVehicleData.ownerEmail}.`
+        });
+      } else {
+        setSubmitFeedback({
+          type: 'success',
+          message: `Submission confirmed and saved! Vehicle is sent for approval.`
+        });
+      }
+
+      // Allow owner to see confirmation message briefly
+      setTimeout(() => {
+        setIsSubmitting(false);
+        onClose();
+      }, 1600);
+    } catch (err: any) {
+      console.warn('Submission error:', err);
+      setIsSubmitting(false);
       onClose();
     }
   };
@@ -358,12 +404,16 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white">
-                {initialVehicle ? 'Edit Car Details' : (isAdmin ? 'Add Car to Platform' : 'Add My Car for Rent')}
+                {showConfirmation 
+                  ? 'Review Listing Summary & Finalized Rates' 
+                  : (initialVehicle ? 'Edit Car Details' : (isAdmin ? 'Add Car to Platform' : 'Add My Car for Rent'))}
               </h2>
               <p className="text-xs text-neutral-400">
-                {isAdmin 
-                  ? 'Admin: Set daily price, car photos, fitness/PUC dates' 
-                  : 'Car Owner: Upload real car photos, set suggested price & availability'}
+                {showConfirmation
+                  ? 'Review all vehicle specifications, included services, and rates before approval submission'
+                  : (isAdmin 
+                      ? 'Admin: Set daily price, car photos, fitness/PUC dates' 
+                      : 'Car Owner: Upload real car photos, set suggested price & availability')}
               </p>
             </div>
           </div>
@@ -377,30 +427,320 @@ export const VehicleFormModal: React.FC<VehicleFormModalProps> = ({
 
         {/* Scrollable Form or Confirmation View */}
         {showConfirmation && pendingVehicleData ? (
-          <div className="flex flex-col p-6 overflow-y-auto space-y-6 text-sm text-neutral-300">
-            <h2 className="text-lg font-bold text-white mb-2">Confirm Submission</h2>
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <p><span className="text-neutral-500 text-xs">Car:</span><br /><span className="font-semibold text-white">{pendingVehicleData.make} {pendingVehicleData.model} ({pendingVehicleData.year})</span></p>
-                <p><span className="text-neutral-500 text-xs">Plate:</span><br /><span className="font-semibold text-white">{pendingVehicleData.licensePlate}</span></p>
-                <p><span className="text-neutral-500 text-xs">Category:</span><br /><span className="font-semibold text-white">{pendingVehicleData.category}</span></p>
-                <p><span className="text-neutral-500 text-xs">Daily Rate:</span><br /><span className="font-semibold text-emerald-400">₹{pendingVehicleData.dailyRate}</span></p>
+          <div className="flex flex-col p-6 overflow-y-auto space-y-5 text-xs text-neutral-300">
+            {/* Top Banner */}
+            <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span>Full Listing Summary & Finalized Rates</span>
+                    <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">
+                      Ready for Review
+                    </span>
+                  </h3>
+                  <p className="text-neutral-400 text-xs mt-1">
+                    Please review all vehicle specifications, included platform services, and your finalized rental rates. Once confirmed, a full copy will be dispatched to your registered email (<strong className="text-neutral-200">{currentUser.email || pendingVehicleData.ownerEmail}</strong>).
+                  </p>
+                </div>
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-3">
+
+            {submitFeedback && (
+              <div className={`p-3 rounded-xl border text-xs flex items-center gap-2.5 ${
+                submitFeedback.type === 'success' 
+                  ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-300' 
+                  : 'border-amber-500/40 bg-amber-950/30 text-amber-300'
+              }`}>
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                <span>{submitFeedback.message}</span>
+              </div>
+            )}
+
+            {/* Vehicle Showcase Card */}
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-start">
+                <div className="relative w-full sm:w-48 h-32 rounded-lg overflow-hidden bg-neutral-900 border border-neutral-800 shrink-0">
+                  <img
+                    src={cleanImageUrl(pendingVehicleData.image)}
+                    alt={`${pendingVehicleData.make} ${pendingVehicleData.model}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/images/upload_vehicle_photo_1791278597476.jpg';
+                    }}
+                  />
+                  {pendingVehicleData.gallery && pendingVehicleData.gallery.length > 0 && (
+                    <div className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded text-[10px] bg-black/80 backdrop-blur-sm text-neutral-300 border border-neutral-700 flex items-center gap-1 font-mono">
+                      <Camera className="h-3 w-3 text-emerald-400" />
+                      <span>+{pendingVehicleData.gallery.length} photos</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-base font-extrabold text-white">
+                        {pendingVehicleData.make} {pendingVehicleData.model} ({pendingVehicleData.year})
+                      </h4>
+                      <p className="text-neutral-400 text-xs flex items-center gap-1.5 mt-0.5">
+                        <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                        <span>{pendingVehicleData.currentLocation.hubName}, {pendingVehicleData.currentLocation.city}</span>
+                      </p>
+                    </div>
+
+                    {/* Indian License Plate Badge */}
+                    <div className="inline-flex items-center rounded-md border border-neutral-600 bg-neutral-900 px-3 py-1 font-mono font-bold text-xs tracking-wider text-white shadow-inner">
+                      <span className="text-[10px] text-blue-400 font-sans font-bold border-r border-neutral-700 pr-1.5 mr-1.5 flex items-center gap-1">
+                        🇮🇳 IND
+                      </span>
+                      <span>{pendingVehicleData.licensePlate}</span>
+                    </div>
+                  </div>
+
+                  {/* Pills */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    <span className="px-2 py-0.5 rounded text-[11px] bg-neutral-800 border border-neutral-700 text-neutral-300 font-medium">
+                      {pendingVehicleData.category}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[11px] bg-neutral-800 border border-neutral-700 text-neutral-300 font-medium flex items-center gap-1">
+                      <Fuel className="h-3 w-3 text-emerald-400" />
+                      {pendingVehicleData.fuelType}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[11px] bg-neutral-800 border border-neutral-700 text-neutral-300 font-medium">
+                      {pendingVehicleData.transmission}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[11px] bg-neutral-800 border border-neutral-700 text-neutral-300 font-medium flex items-center gap-1">
+                      <Users className="h-3 w-3 text-emerald-400" />
+                      {pendingVehicleData.seatingCapacity} Seater
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[11px] bg-neutral-800 border border-neutral-700 text-neutral-300 font-medium">
+                      Color: {pendingVehicleData.color}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Rates Finalized by Owner (Highlighted Card) */}
+            <div className="rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/30 via-neutral-900/60 to-neutral-950 p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <IndianRupee className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Finalized Rates & Pricing (Set by Owner)
+                  </span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                  Rates Finalized
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                <div className="p-3 rounded-lg bg-neutral-900/90 border border-neutral-800">
+                  <span className="text-neutral-400 text-[11px] block">Daily Rental Rate</span>
+                  <span className="text-lg font-extrabold text-emerald-400 font-mono">₹{pendingVehicleData.dailyRate}</span>
+                  <span className="text-neutral-500 text-[10px] block">per day (24 hours)</span>
+                </div>
+
+                <div className="p-3 rounded-lg bg-neutral-900/90 border border-neutral-800">
+                  <span className="text-neutral-400 text-[11px] block">Hourly Rate</span>
+                  <span className="text-base font-bold text-white font-mono">₹{pendingVehicleData.hourlyRate}</span>
+                  <span className="text-neutral-500 text-[10px] block">per hour pro-rata</span>
+                </div>
+
+                <div className="p-3 rounded-lg bg-neutral-900/90 border border-neutral-800">
+                  <span className="text-neutral-400 text-[11px] block">Security Deposit</span>
+                  <span className="text-base font-bold text-white font-mono">₹{pendingVehicleData.depositAmount}</span>
+                  <span className="text-neutral-500 text-[10px] block">Refundable deposit</span>
+                </div>
+
+                <div className="p-3 rounded-lg bg-neutral-900/90 border border-neutral-800">
+                  <span className="text-neutral-400 text-[11px] block">Free Daily KM</span>
+                  <span className="text-base font-bold text-white font-mono">{pendingVehicleData.kmAllowancePerDay} KM</span>
+                  <span className="text-neutral-500 text-[10px] block">Extra: ₹{pendingVehicleData.excessKmRate}/km</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Included Platform Services */}
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-3">
+              <div className="flex items-center gap-2 border-b border-neutral-800/80 pb-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  Full Platform Services & Guarantees Included
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-2.5 rounded-lg bg-neutral-900/60 border border-neutral-800/80 flex items-start gap-2.5">
+                  <div className="p-1 rounded bg-emerald-500/10 text-emerald-400 mt-0.5">
+                    <Check className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <strong className="text-white block">24/7 Roadside Assistance</strong>
+                    <span className="text-neutral-400 text-[11px]">Emergency towing, flat-tyre assistance, and jump-start support nationwide.</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-neutral-900/60 border border-neutral-800/80 flex items-start gap-2.5">
+                  <div className="p-1 rounded bg-emerald-500/10 text-emerald-400 mt-0.5">
+                    <Check className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <strong className="text-white block">Comprehensive Insurance Cover</strong>
+                    <span className="text-neutral-400 text-[11px]">Commercial self-drive protection for accidental damage and third-party liabilities.</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-neutral-900/60 border border-neutral-800/80 flex items-start gap-2.5">
+                  <div className="p-1 rounded bg-emerald-500/10 text-emerald-400 mt-0.5">
+                    <Check className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <strong className="text-white block">Verified Renter Background Checks</strong>
+                    <span className="text-neutral-400 text-[11px]">Every customer is verified with Aadhaar and original Driving License before rental.</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded-lg bg-neutral-900/60 border border-neutral-800/80 flex items-start gap-2.5">
+                  <div className="p-1 rounded bg-emerald-500/10 text-emerald-400 mt-0.5">
+                    <Check className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <strong className="text-white block">FASTag Automated Toll Management</strong>
+                    <span className="text-neutral-400 text-[11px]">Contactless toll tracking and seamless deduction billed directly to the customer.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Technical Condition & Documents Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Technical Specifications */}
+              <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2.5">
+                <div className="flex items-center gap-2 border-b border-neutral-800/80 pb-2">
+                  <Gauge className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Vehicle Condition</span>
+                </div>
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="flex justify-between py-1 border-b border-neutral-800/50">
+                    <span className="text-neutral-400">Current Odometer:</span>
+                    <span className="font-mono text-white font-semibold">{pendingVehicleData.odometer.toLocaleString('en-IN')} KM</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-neutral-800/50">
+                    <span className="text-neutral-400">Fuel / Battery Level:</span>
+                    <span className="font-mono text-emerald-400 font-semibold">{pendingVehicleData.fuelOrBatteryPct}%</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-neutral-800/50">
+                    <span className="text-neutral-400">Transmission:</span>
+                    <span className="text-white font-semibold">{pendingVehicleData.transmission}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-neutral-400">Seating Capacity:</span>
+                    <span className="text-white font-semibold">{pendingVehicleData.seatingCapacity} Persons</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Legal & Compliance */}
+              <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2.5">
+                <div className="flex items-center gap-2 border-b border-neutral-800/80 pb-2">
+                  <FileText className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Compliance & Documents</span>
+                </div>
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="flex justify-between py-1 border-b border-neutral-800/50">
+                    <span className="text-neutral-400">RC Number:</span>
+                    <span className="font-mono text-white font-semibold">
+                      {pendingVehicleData.documents?.skipped ? 'Skipped (Upload later)' : (pendingVehicleData.documents?.rcNumber || 'Provided')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-neutral-800/50">
+                    <span className="text-neutral-400">Insurance Expiry:</span>
+                    <span className="text-white font-semibold">{pendingVehicleData.documents?.insuranceExpiry || '2027-12-31'}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-neutral-800/50">
+                    <span className="text-neutral-400">PUC Certificate:</span>
+                    <span className="text-white font-semibold">{pendingVehicleData.documents?.pucExpiry || '2027-12-31'}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-neutral-400">Plate / Permit Type:</span>
+                    <span className="text-white font-semibold">{pendingVehicleData.documents?.permitType || 'Self-Drive'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Blocked Dates Info */}
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-emerald-400" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Personal Schedule</span>
+                </div>
+                <span className="text-[11px] text-neutral-400">
+                  {pendingVehicleData.blockedDates && pendingVehicleData.blockedDates.length > 0 
+                    ? `${pendingVehicleData.blockedDates.length} date(s) reserved for personal use`
+                    : '100% Available for bookings'}
+                </span>
+              </div>
+              {pendingVehicleData.blockedDates && pendingVehicleData.blockedDates.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {pendingVehicleData.blockedDates.map(dateStr => (
+                    <span key={dateStr} className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                      {dateStr}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-neutral-500 italic">No blackout dates. Your car will be ready for bookings immediately upon approval.</p>
+              )}
+            </div>
+
+            {/* Email Dispatch Notice */}
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5 flex items-start gap-3">
+              <Mail className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="text-[11px] leading-relaxed text-neutral-300">
+                <strong className="text-white block">Email Dispatch on Confirmation:</strong>
+                A full copy of this service breakdown and your finalized rates (₹{pendingVehicleData.dailyRate}/day) will be emailed to <strong className="text-emerald-300">{currentUser.email || pendingVehicleData.ownerEmail}</strong> and copied to GoDrive Operations for expedited verification.
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-between pt-3 border-t border-neutral-800">
               <button
                 type="button"
-                onClick={() => setShowConfirmation(false)}
-                className="px-4 py-2 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 font-medium cursor-pointer"
+                onClick={() => {
+                  setShowConfirmation(false);
+                  setSubmitFeedback(null);
+                }}
+                disabled={isSubmitting}
+                className="px-4 py-2.5 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 disabled:opacity-50 font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                Back to Edit
+                <ChevronLeft className="h-4 w-4" />
+                <span>Back to Edit</span>
               </button>
+
               <button
                 type="button"
                 onClick={handleConfirmSubmit}
-                className="px-5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold transition-colors shadow-lg shadow-emerald-500/20 cursor-pointer"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-neutral-950 font-bold text-xs transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 cursor-pointer"
               >
-                Confirm & Submit for Approval
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Mailing Summary & Submitting...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Confirm & Submit for Approval</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

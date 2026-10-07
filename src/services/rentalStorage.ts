@@ -3,6 +3,7 @@ import {
   Booking, 
   AuditRecord, 
   MaintenanceLog, 
+  ServiceReminder, 
   PayoutRecord, 
   DisputeRecord, 
   PlatformSettings
@@ -25,6 +26,7 @@ const STORAGE_KEYS = {
   BOOKINGS: 'vahaanflow_bookings_v3',
   AUDIT: 'vahaanflow_audit_v3',
   MAINTENANCE: 'vahaanflow_maint_v3',
+  SERVICE_REMINDERS: 'vahaanflow_service_reminders_v1',
   PAYOUTS: 'vahaanflow_payouts_v3',
   DISPUTES: 'vahaanflow_disputes_v3',
   SETTINGS: 'vahaanflow_settings_v3',
@@ -80,6 +82,7 @@ export class RentalStorageService {
       onBookings: (b: Booking[]) => void;
       onAuditLogs?: (a: AuditRecord[]) => void;
       onMaintenance?: (m: MaintenanceLog[]) => void;
+      onServiceReminders?: (r: ServiceReminder[]) => void;
       onPayouts?: (p: PayoutRecord[]) => void;
       onDisputes?: (d: DisputeRecord[]) => void;
     }
@@ -159,19 +162,19 @@ export class RentalStorageService {
         );
       }
 
-      // 4. Maintenance (Admin only)
-      if (role === 'admin' && callbacks.onMaintenance) {
+      // 4. Service Reminders (Admin only - replaces maintenance sync)
+      if (role === 'admin' && callbacks.onServiceReminders) {
         unsubs.push(
-          onSnapshot(collection(db, 'maintenance'), (snap) => {
-            const list: MaintenanceLog[] = [];
+          onSnapshot(collection(db, 'serviceReminders'), (snap) => {
+            const list: ServiceReminder[] = [];
             snap.forEach((d) => {
-              const m = d.data() as MaintenanceLog;
-              m.id = d.id;
-              list.push(m);
+              const r = d.data() as ServiceReminder;
+              r.id = d.id;
+              list.push(r);
             });
-            localStorage.setItem(STORAGE_KEYS.MAINTENANCE, JSON.stringify(list));
-            callbacks.onMaintenance?.(list);
-          }, err => console.warn('Maintenance snapshot notice:', err))
+            localStorage.setItem(STORAGE_KEYS.SERVICE_REMINDERS, JSON.stringify(list));
+            callbacks.onServiceReminders?.(list);
+          }, err => console.warn('ServiceReminders snapshot notice:', err))
         );
       }
 
@@ -455,6 +458,44 @@ export class RentalStorageService {
       await setDoc(doc(db, 'disputes', dispute.id), cleanForFirestore(dispute), { merge: true });
     } catch (e) {
       console.warn('Dispute Firestore save error:', e);
+      throw e;
+    }
+  }
+
+  // --- SERVICE REMINDERS (Replaces Maintenance) ---
+  static getServiceReminders(): ServiceReminder[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.SERVICE_REMINDERS);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  static async saveServiceReminder(reminder: ServiceReminder): Promise<void> {
+    const list = this.getServiceReminders();
+    const idx = list.findIndex(r => r.id === reminder.id);
+    if (idx >= 0) {
+      list[idx] = reminder;
+    } else {
+      list.unshift(reminder);
+    }
+    localStorage.setItem(STORAGE_KEYS.SERVICE_REMINDERS, JSON.stringify(list));
+    try {
+      await setDoc(doc(db, 'serviceReminders', reminder.id), cleanForFirestore(reminder), { merge: true });
+    } catch (e) {
+      console.warn('ServiceReminders Firestore save error:', e);
+      throw e;
+    }
+  }
+
+  static async deleteServiceReminder(reminderId: string): Promise<void> {
+    const list = this.getServiceReminders().filter(r => r.id !== reminderId);
+    localStorage.setItem(STORAGE_KEYS.SERVICE_REMINDERS, JSON.stringify(list));
+    try {
+      await deleteDoc(doc(db, 'serviceReminders', reminderId));
+    } catch (e) {
+      console.warn('ServiceReminders Firestore delete error:', e);
       throw e;
     }
   }

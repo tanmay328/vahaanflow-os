@@ -100,6 +100,29 @@
         "status": { "type": "string" }
       },
       "required": ["id", "vehicleId", "serviceType", "scheduledDate", "status"]
+    },
+    "ServiceReminder": {
+      "title": "ServiceReminder",
+      "description": "Scheduled vehicle servicing and parts check reminder",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "vehicleLabel": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "kind": { "type": "string", "enum": ["main_service", "part_check"] },
+        "title": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "frequency": { "type": "string", "enum": ["once", "monthly", "every_6_months", "every_12_months"] },
+        "lastDoneDate": { "type": "string" },
+        "paused": { "type": "boolean" },
+        "notes": { "type": "string" },
+        "mailsSentForCurrentDue": { "type": "number" },
+        "lastMailDate": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["id", "vehicleId", "vehicleLabel", "ownerId", "kind", "title", "dueDate", "frequency", "paused", "mailsSentForCurrentDue", "createdAt", "createdBy"]
     }
   },
   "firestore": {
@@ -122,6 +145,10 @@
     "/maintenance/{maintId}": {
       "schema": "Maintenance",
       "description": "RTO & garage service logs"
+    },
+    "/serviceReminders/{reminderId}": {
+      "schema": "ServiceReminder",
+      "description": "Vehicle service and part check automated reminders"
     }
   }
 }

@@ -4,6 +4,7 @@ import {
   Booking, 
   AuditRecord, 
   MaintenanceLog, 
+  ServiceReminder,
   PayoutRecord,
   DisputeRecord,
   PlatformSettings,
@@ -60,6 +61,7 @@ export default function App() {
   const [vehicles, setVehicles] = useState<Vehicle[]>(() => RentalStorageService.getVehicles());
   const [bookings, setBookings] = useState<Booking[]>(() => RentalStorageService.getBookings());
   const [auditLogs, setAuditLogs] = useState<AuditRecord[]>(() => RentalStorageService.getAuditLogs());
+  const [serviceReminders, setServiceReminders] = useState<ServiceReminder[]>(() => RentalStorageService.getServiceReminders());
   const [maintenance, setMaintenance] = useState<MaintenanceLog[]>(() => RentalStorageService.getMaintenanceLogs());
   const [payouts, setPayouts] = useState<PayoutRecord[]>(() => RentalStorageService.getPayouts());
   const [disputes, setDisputes] = useState<DisputeRecord[]>(() => RentalStorageService.getDisputes());
@@ -100,9 +102,9 @@ export default function App() {
   const [isDemoPulseActive, setIsDemoPulseActive] = useState<boolean>(false);
 
   // Notification Toast
-  const [activeToast, setActiveToast] = useState<{ title: string; message: string; type: 'info' | 'success' | 'warning' } | null>(null);
+  const [activeToast, setActiveToast] = useState<{ title: string; message: string; type: 'info' | 'success' | 'warning' | 'error' } | null>(null);
 
-  const showToast = useCallback((title: string, message: string, type: 'info' | 'success' | 'warning' = 'info') => {
+  const showToast = useCallback((title: string, message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     setActiveToast({ title, message, type });
     setTimeout(() => {
       setActiveToast(prev => (prev?.title === title ? null : prev));
@@ -163,7 +165,7 @@ export default function App() {
         onVehicles: (v) => setVehicles(v),
         onBookings: (b) => setBookings(b),
         onAuditLogs: (a) => setAuditLogs(a),
-        onMaintenance: (m) => setMaintenance(m),
+        onServiceReminders: (s) => setServiceReminders(s),
         onPayouts: (p) => setPayouts(p),
         onDisputes: (d) => setDisputes(d),
       }
@@ -1086,74 +1088,31 @@ export default function App() {
             />
           )}
 
-          {/* TAB 6: MAINTENANCE (Admin Only) */}
+          {/* TAB 6: SERVICE REMINDERS (Admin Only) */}
           {activeTab === 'maintenance' && currentUser.role === 'admin' && (
             <MaintenanceLedger
-              maintenanceLogs={maintenance}
+              serviceReminders={serviceReminders}
               vehicles={vehicles}
+              allUsers={allUsers}
+              currentUser={currentUser}
               theme={theme}
-              onAddLog={async (m) => {
-                await RentalStorageService.saveMaintenance(m);
-                setMaintenance(prev => [...prev, m]);
-                const vehicle = vehicles.find(v => v.id === m.vehicleId);
-                await RentalStorageService.logAudit({
-                  category: 'maintenance',
-                  action: 'Servicing Scheduled',
-                  summary: `Servicing logged for ${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'} (${m.vehiclePlate}). Type: ${m.serviceType}, Workshop: ${m.workshopName}, Cost: ₹${m.cost}.`,
-                  actor: {
-                    id: currentUser.id,
-                    name: currentUser.name,
-                    role: currentUser.role,
-                  },
-                  vehiclePlate: m.vehiclePlate,
-                  severity: 'info',
+              onSaveReminder={async (reminder) => {
+                await RentalStorageService.saveServiceReminder(reminder);
+                setServiceReminders(prev => {
+                  const idx = prev.findIndex(r => r.id === reminder.id);
+                  if (idx >= 0) {
+                    const next = [...prev];
+                    next[idx] = reminder;
+                    return next;
+                  }
+                  return [...prev, reminder];
                 });
-                showToast('Work Order Created', `Scheduled ${m.serviceType}.`, 'success');
               }}
-              onCompleteLog={async (mId) => {
-                const m = maintenance.find(item => item.id === mId);
-                if (m) {
-                  const updated = { ...m, status: 'completed' as const, completionDate: new Date().toISOString().split('T')[0] };
-                  await RentalStorageService.saveMaintenance(updated);
-                  setMaintenance(prev => prev.map(item => item.id === mId ? updated : item));
-                  const vehicle = vehicles.find(v => v.id === m.vehicleId);
-                  await RentalStorageService.logAudit({
-                    category: 'maintenance',
-                    action: 'Servicing Completed',
-                    summary: `Servicing completed for ${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'} (${m.vehiclePlate}). Type: ${m.serviceType}, Workshop: ${m.workshopName}. Vehicle returned to available status.`,
-                    actor: {
-                      id: currentUser.id,
-                      name: currentUser.name,
-                      role: currentUser.role,
-                    },
-                    vehiclePlate: m.vehiclePlate,
-                    severity: 'info',
-                  });
-                  showToast('Service Completed', 'Vehicle returned to service ready.', 'success');
-                }
+              onDeleteReminder={async (reminderId) => {
+                await RentalStorageService.deleteServiceReminder(reminderId);
+                setServiceReminders(prev => prev.filter(r => r.id !== reminderId));
               }}
-              onRevertLog={async (mId) => {
-                const m = maintenance.find(item => item.id === mId);
-                if (m) {
-                  const updated = { ...m, status: 'in_progress' as const };
-                  await RentalStorageService.saveMaintenance(updated);
-                  setMaintenance(prev => prev.map(item => item.id === mId ? updated : item));
-                  const vehicle = vehicles.find(v => v.id === m.vehicleId);
-                  await RentalStorageService.logAudit({
-                    category: 'maintenance',
-                    action: 'Servicing Reopened',
-                    summary: `Servicing reopened / moved back to In Workshop status for ${vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'} (${m.vehiclePlate}).`,
-                    actor: {
-                      id: currentUser.id,
-                      name: currentUser.name,
-                      role: currentUser.role,
-                    },
-                    vehiclePlate: m.vehiclePlate,
-                    severity: 'notice',
-                  });
-                  showToast('Action Undone', 'Vehicle moved back to In Workshop status.', 'info');
-                }
-              }}
+              showToast={showToast}
             />
           )}
 

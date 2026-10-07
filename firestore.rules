@@ -176,5 +176,10 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
+
+    // 9. Service Reminders collection (Admin only read & write)
+    match /serviceReminders/{reminderId} {
+      allow read, write: if isAdmin();
+    }
   }
 }

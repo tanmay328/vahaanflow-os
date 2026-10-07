@@ -283,6 +283,28 @@ export interface MaintenanceLog {
   rtoFitnessVerified?: boolean;
 }
 
+export type ServiceReminderKind = 'main_service' | 'part_check';
+export type ServiceReminderFrequency = 'once' | 'monthly' | 'every_6_months' | 'every_12_months';
+
+export interface ServiceReminder {
+  id: string;
+  vehicleId: string;
+  vehicleLabel: string; // make, model, number plate e.g. "Mahindra XUV700 (KA 01 MJ 8820)"
+  ownerId: string;
+  kind: ServiceReminderKind;
+  title: string;
+  dueDate: string; // YYYY-MM-DD
+  frequency: ServiceReminderFrequency;
+  lastDoneDate: string | null; // YYYY-MM-DD or null
+  paused: boolean;
+  notes: string;
+  mailsSentForCurrentDue: number;
+  lastMailDate: string | null; // YYYY-MM-DD or null
+  createdAt: string;
+  createdBy: string;
+  completed?: boolean;
+}
+
 export const INDIAN_LOCATIONS = [
   // Bengaluru Hotspots
   { city: 'Bengaluru', hubName: 'Kempegowda Int\'l Airport (BLR) Hub', lat: 13.1986, lng: 77.7066 },
