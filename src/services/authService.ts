@@ -162,6 +162,12 @@ export class AuthService {
           error: 'Access temporarily disabled due to multiple failed login attempts. Please try again later or reset your password.',
         };
       }
+      if (code === 'auth/api-key-not-valid' || err.message?.includes('api-key-not-valid')) {
+        return {
+          success: false,
+          error: 'Firebase Web API Key is missing or invalid. Please update "firebase-applet-config.json" with your Firebase project API Key from Firebase Console (Project Settings > Web App).',
+        };
+      }
       return {
         success: false,
         error: err.message || 'Login failed. Please check your credentials.',
@@ -264,6 +270,12 @@ export class AuthService {
       if (err.code === 'auth/popup-blocked') {
         return { success: false, error: 'The Google sign-in popup was blocked by your browser. Please allow popups for this site and try again.' };
       }
+      if (err.code === 'auth/api-key-not-valid' || err.message?.includes('api-key-not-valid')) {
+        return {
+          success: false,
+          error: 'Firebase Web API Key is missing or invalid. Please update "firebase-applet-config.json" with your Firebase project API Key from Firebase Console (Project Settings > Web App).',
+        };
+      }
       return {
         success: false,
         error: err.message || 'Google sign-in failed. Please try again.',
@@ -335,6 +347,12 @@ export class AuthService {
       }
       if (err.code === 'auth/weak-password') {
         return { success: false, error: 'Password should be at least 6 characters.' };
+      }
+      if (err.code === 'auth/api-key-not-valid' || err.message?.includes('api-key-not-valid')) {
+        return {
+          success: false,
+          error: 'Firebase Web API Key is missing or invalid. Please update "firebase-applet-config.json" with your Firebase project API Key from Firebase Console (Project Settings > Web App).',
+        };
       }
       return { success: false, error: err.message || 'Could not create account.' };
     }

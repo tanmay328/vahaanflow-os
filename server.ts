@@ -6,8 +6,9 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import cron from 'node-cron';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
+import { DecodedIdToken } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
 
 dotenv.config();
@@ -25,10 +26,8 @@ if (!getApps().length) {
     });
   } else {
     try {
-      const parsedKey = typeof saKey === 'string' ? JSON.parse(saKey) : saKey;
       initializeApp({
-        credential: cert(parsedKey),
-        projectId: firebaseConfig.projectId,
+        credential: cert(JSON.parse(saKey)),
       });
       console.log('✅ Firebase Admin SDK initialized with FIREBASE_SERVICE_ACCOUNT_KEY for project:', firebaseConfig.projectId);
     } catch (e: any) {
